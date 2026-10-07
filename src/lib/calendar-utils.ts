@@ -66,3 +66,39 @@ export function formatSessionDate(iso: string): string {
     timeZone: "UTC",
   }).format(date);
 }
+
+/**
+ * Google Calendar "add event" link for the booked session (30 minutes,
+ * Bogotá timezone). Accepts slot labels like "10:30 AM".
+ */
+export function googleCalendarUrl(iso: string, time: string): string {
+  const [year, month, day] = iso.split("-").map(Number);
+  let h = 9;
+  let min = 0;
+  const m = /^(\d{1,2}):(\d{2})\s*(A\.?M\.?|P\.?M\.?)$/i.exec((time ?? "").trim());
+  if (m) {
+    h = parseInt(m[1], 10);
+    min = parseInt(m[2], 10);
+    const ap = m[3].replace(/\./g, "").toUpperCase();
+    if (ap === "PM" && h !== 12) h += 12;
+    if (ap === "AM" && h === 12) h = 0;
+  }
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const stamp = (hh: number, mm: number) =>
+    `${year}${pad(month)}${pad(day)}T${pad(hh)}${pad(mm)}00`;
+  let endH = h;
+  let endM = min + 30;
+  if (endM >= 60) {
+    endM -= 60;
+    endH += 1;
+  }
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: "Sesión de diagnóstico — Julián Alejandro",
+    details:
+      "Sesión de diagnóstico de tu negocio por videollamada (aprox. 30 minutos). Recibirás el enlace por WhatsApp.",
+    dates: `${stamp(h, min)}/${stamp(endH, endM)}`,
+    ctz: "America/Bogota",
+  });
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}

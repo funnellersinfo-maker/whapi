@@ -31,7 +31,7 @@ const GROUPS = [
       "Califica prospectos",
       "Hace seguimiento",
       "Recupera oportunidades",
-      "Trabaja múltiples canales",
+      "Trabaja en tiempo real",
       "Envía notificaciones y alertas",
       "Funciona desde cualquier dispositivo",
     ],

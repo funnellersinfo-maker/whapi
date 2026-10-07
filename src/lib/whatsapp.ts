@@ -27,7 +27,7 @@ ${booking.name}
 ${booking.whatsapp}
 
 🏢 Negocio:
-${quiz.businessType}
+${booking.businessType || quiz.businessType}
 
 💬 MENSAJES DIARIOS:
 ${quiz.dailyMessages}

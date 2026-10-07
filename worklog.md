@@ -54,3 +54,63 @@ Stage Summary:
 - Leads no calificados NO pueden reservar: pantalla elegante + CTA secundario a la sección del sistema.
 - Variables configurables sin IDs inventados: NEXT_PUBLIC_META_PIXEL_ID, NEXT_PUBLIC_WHATSAPP_NUMBER, META_CAPI_PIXEL_ID, META_CAPI_ACCESS_TOKEN.
 - Performance: hero AVIF 54KB con blur placeholder y fetchPriority high, lazy loading bajo el fold, animaciones ligeras, sin scroll horizontal en 360/390/1440px.
+
+---
+
+Task ID: 2
+Agent: full-stack-developer
+Task: Panel privado de administración (API /api/admin/leads + componente AdminGear con tuerca, gate de clave, tabla de leads y calendario)
+
+Work Log:
+- Leí worklog.md y el estado del proyecto: funnel completo en / (tarea 2-a backend, 2-b frontend), Lead model en SQLite con columna `country` ya agregada al schema y a la DB, dev server corriendo en :3000, 2 leads reales de prueba en DB (Julián QUALIFIED 2026-10-10 10:30 AM + 1 DISQUALIFIED).
+- Creé src/app/api/admin/leads/route.ts (runtime nodejs): auth por header `x-admin-key` === process.env.ADMIN_KEY ?? 'WHAPI2027' para AMBOS métodos (401 {ok:false,error:'unauthorized'} si falla). GET con query opcional `limit` (1–1000, default 500, clamp + fallback a 500 si no es numérico), leads ordenados por createdAt DESC, quiz parseado de JSON string a objeto (tolerante a null/inválido → null), serialización exacta: id, status, name, whatsapp, email, country, sessionDate, sessionTime, waMessage, quiz, createdAt/updatedAt ISO. DELETE con query `id` (400 invalid_id si falta → try/catch → 500 server_error).
+- DECISIÓN TÉCNICA IMPORTANTE: el dev server arrancó a las 19:56 pero el client de Prisma fue regenerado a las 22:15 (cuando se agregó `country`), así que el PrismaClient en memoria del proceso NO conoce la columna country → `db.lead.findMany()` devolvía leads SIN la clave country (undefined → omitida del JSON). Como no puedo reiniciar el dev server, implementé el GET con `db.$queryRaw<RawLeadRow[]>` (SELECT explícito de todas las columnas incluyendo country, LIMIT parametrizado) — verificado: funciona con el client en memoria viejo Y con el nuevo; createdAt/updatedAt llegan como Date y se normalizan con .toISOString(). Tras cualquier reinicio futuro del dev server, el raw query sigue siendo 100% equivalente.
+- Creé src/components/admin/admin-panel.tsx ("use client") con el named export `AdminGear` (self-contained, sin tocar footer/landing/page — el agente principal lo integra):
+  - Tuerca: botón redondo ghost h-9 w-9 con Settings (lucide), text-dim/50 hover:text-ink, aria-label="Acceso administrador", inline-flex (el padre lo centra).
+  - Gate modal (z-[200], bg-black/80 backdrop-blur): icono Lock en cuadrado wa-tinted, "Acceso restringido" (font-display bold uppercase), "Panel privado de administración", input password h-12 estilo landing (focus:border-wa/60), error "Clave incorrecta. Inténtalo de nuevo." en tonos #ff7d6e, botón full-width h-12 rounded-full bg-wa-bright text-[#03150c] con spinner, X arriba a la derecha, click en backdrop cierra. Al submit: GET /api/admin/leads?limit=1 con la clave ingresada → 200 = unlocked + persistencia en sessionStorage('whapi-admin-key') + carga de datos + abre panel; 401 = error.
+  - Verificación silenciosa al montar: si existe clave en sessionStorage, GET limit=1 → si es válida unlocked=true (el siguiente click en la tuerca va directo al panel); si no, se limpia.
+  - Panel full-screen (fixed inset-0 z-[200] bg-[#050708]/[0.985] backdrop-blur-sm overflow-y-auto): header sticky con engranaje wa-tinted + "WHAPI — Panel de administración" + sub "Registros de leads · Sesiones agendadas" + botones RefreshCw (gira mientras carga) y X; bloqueo de scroll del body (overflow=hidden + restore) y cierre con Escape.
+  - KPIs (grid-cols-2 sm:grid-cols-3 lg:grid-cols-5): Total leads, Calificados (verde wa), En progreso (dim), Descartados (gold), Sesiones agendadas (sessionDate ≠ null) + tarjeta ancha "Tasa de calificación" = QUALIFIED/(QUALIFIED+DISQUALIFIED) con sub "calificados vs descartados" ('—' si denominador 0).
+  - Tabs Leads/Calendario (pills, activo: bg-wa/15 text-wa border-wa/40).
+  - Leads: filtros (búsqueda con normalización NFD sin acentos case-insensitive sobre nombre/whatsapp/email, select de estado, select de países únicos de los datos, rango desde/hasta sobre fecha Bogotá de createdAt) + chips de filtros activos con X para limpiar + contador; tabla en md+ (Nombre+email, WhatsApp como link wa.me con strip de no-dígitos + prefijo 57, Negocio, País, badge de estado, Sesión "sáb, 10 oct · 10:30 AM" con ancla UTC mediodía, Creado "7 oct · 5:21 PM" Bogotá, chevron expandible) y tarjetas apiladas en mobile; vista expandida con TODAS las respuestas del quiz (incluye automationTool entre paréntesis, budgetConfirmed → Confirmado/Puede reunirlo/No por ahora), email + país si existen, waMessage completo en pre scrollable y botón "Eliminar registro" (Trash2, confirm de window, DELETE con clave, feedback inline transitorio "Lead eliminado" 2.6s). Estado vacío "No hay leads que coincidan con los filtros."
+  - Calendario tipo Calendly: navegación ‹ › + "Octubre 2026" (es-CO, capitalize manual) + botón Hoy libre a cualquier mes; grid 7 columnas L M X J V S D (lunes primero), celdas aspect-square con punto verde wa + contador de sesiones, día seleccionado border-wa/60 bg-wa/10, hoy con borde sutil, días de otros meses invisibles; día inicial = reserva futura más próxima (o hoy, mes sincronizado a ese día); lista de sesiones del día seleccionado (chip de hora wa-tinted + nombre + link WhatsApp + negocio + badge) ordenadas cronológicamente (parser propio de "10:30 AM"), vacío "Sin sesiones este día."; todas las fechas construidas con ancla T12:00:00Z y comparadas por string ISO YYYY-MM-DD.
+  - Accesibilidad: aria-labels en todos los botones iconográficos, aria-expanded en expandibles, role=dialog/tablist/tab/aria-selected, aria-live en el aviso de eliminación, focus-visible ring wa en todos los interactivos. Sin azules/indigos: solo paleta wa/gold/carbon + #ff7d6e para errores.
+- Lint: `bunx eslint src/app/api/admin/leads/route.ts src/components/admin/admin-panel.tsx` → EXIT 0, cero errores. `bunx tsc --noEmit` → cero errores en mis archivos (los 6 errores que reporta el proyecto son preexistentes de otros archivos: examples/, skills/, api/lead/route.ts y quiz.tsx, no tocados por mí).
+- Curl sobre el dev server corriendo: GET sin clave → 401; con x-admin-key: WRONG → 401; con WHAPI2027 → 200 {ok:true,leads:[...]} con 2 leads (country incluido, quiz parseado, createdAt DESC correcto: DISQUALIFIED 21:57 antes de QUALIFIED 21:54); limit=1 → 1 lead; DELETE sin id → 400 invalid_id; DELETE sin clave → 401; DELETE con clave equivocada → 401.
+- Test completo del ciclo de vida: creé lead desechable por la API pública (visitorId admin-agent-test-1, action progress) → 200; lo borré con DELETE /api/admin/leads?id=... → 200 {ok:true}; segundo DELETE del mismo id → 500 server_error (comportamiento esperado del try/catch); lista final → exactamente los 2 leads originales intactos (verificado también directo en SQLite).
+- dev.log limpio: solo requests con los códigos esperados (200/400/401/500 según el caso), sin errores de compilación de mis archivos; GET / sigue en 200.
+
+Stage Summary:
+- Archivos creados (ÚNICOS modificados): src/app/api/admin/leads/route.ts y src/components/admin/admin-panel.tsx. Export nombrado: `AdminGear` (src/components/admin/admin-panel.tsx). Ningún otro archivo tocado.
+- API: GET/DELETE /api/admin/leads con auth x-admin-key (ADMIN_KEY env con fallback 'WHAPI2027'). GET → {ok:true,leads:[{id,status,name,whatsapp,email,country,sessionDate,sessionTime,waMessage,quiz,createdAt,updatedAt}]} (limit 1–1000 default 500, createdAt DESC). DELETE ?id= → {ok:true} | 400 invalid_id | 500 server_error | 401 sin clave válida.
+- Integración pendiente (agente principal): importar `AdminGear` desde "@/components/admin/admin-panel" y renderizarla en el footer (centrada, p. ej. dentro de un div flex justify-center tras el copyright). Contraseña: WHAPI2027 (o env ADMIN_KEY).
+- Nota para el agente principal: el PrismaClient en memoria del dev server actual no conoce la columna `country` (client regenerado después del arranque); por eso el GET usa $queryRaw con SELECT explícito — el endpoint ya devuelve country correctamente SIN necesidad de reiniciar el dev server. El funnel público /api/lead (client viejo en memoria) seguirá guardando country=null hasta el próximo reinicio del server; con el reinicio, todo queda alineado automáticamente.
+- Verificación: lint 0 errores, tsc 0 errores en mis archivos, curl 401/401/200 + ciclo create/DELETE verificado, DB con exactamente los 2 leads originales de prueba intactos.
+
+---
+Task ID: 3
+Agent: Z.ai Code (main agent)
+Task: Correcciones solicitadas por Julián + panel admin + auditoría de conversión
+
+Work Log:
+- Esquema Prisma: añadido campo `country` a Lead + `bun run db:push` (cliente regenerado). Dev server reiniciado para recargar el cliente Prisma.
+- Foto personal: analizada con VLM (bbox facial), recorte moderado 680×680 con sharp (rostro ~36% del encuadre, no muy cercano), export AVIF 28KB + WebP 39KB + JPEG fallback, verificado con VLM (rostro completo, encuadre moderado, sin pixelado). Integrada en about.tsx como círculo HD 128px con ring verde, glow y punto de estado.
+- about.tsx: chip "Especialización reciente en IA aplicada" → chip dorado destacado "Certificación Meta Partner" con BadgeCheck.
+- integrations.tsx: "Droppy" → "Dropi".
+- system.tsx: "Trabaja múltiples canales" → "Trabaja en tiempo real" (grupo Convierte; evita malentendido de que responde Instagram/Messenger).
+- Formulario de reserva: nuevo campo obligatorio "¿A qué se dedica tu negocio?" (select con las 16 opciones de Q1, preseleccionado si el quiz coincide); nombre/WhatsApp/email intactos; error invalid_business; booking.businessType sincronizado en quiz guardado (valor autoritativo del formulario).
+- Captura de país: quiz envía tz + navigator.languages; lib/geo.ts (TZ→país + fallback por región de idioma); /api/lead persiste country en progress/disqualified/booked.
+- whatsapp.ts: línea 🏢 Negocio usa booking.businessType (formulario) con fallback al quiz.
+- Pantalla de descarte: botón adicional "Sígueme en Instagram" → https://www.instagram.com/julian_alejandro_morales/ (target _blank).
+- Pantalla de éxito: enlace "Agregar a mi calendario" (Google Calendar, 30 min, tz America/Bogota) vía googleCalendarUrl() en calendar-utils.ts.
+- Footer: tuerca AdminGear (aria-label "Acceso administrador") centrada bajo el copyright.
+- Borradas reservas de prueba de la DB (Julián 10-oct 10:30 AM QUALIFIED + test DISQUALIFIED).
+- Panel admin (Task ID 2, subagente full-stack-developer): /api/admin/leads GET/DELETE con x-admin-key WHAPI2027 (env ADMIN_KEY opcional) + admin-panel.tsx (gate, KPIs, tabla/cards, filtros, respuestas quiz, waMessage, delete, calendario estilo Calendly). Integrado en footer.
+- Verificación end-to-end con agent-browser (390/360/1440px): funnel completo positivo (quiz 8 preguntas → filtro → calendario → formulario con select → reserva → WhatsApp con mensaje estructurado, emojis intactos, "Negocio: Turismo" del formulario), camino negativo (pantalla elegante + Instagram), panel admin (clave incorrecta → error; WHAPI2027 → KPIs, búsqueda, expansión, delete con confirm, calendario con día seleccionable), country="Colombia" con tz America/Bogota vía curl. Sin overflow horizontal. Lint 0 errores. DB final: 0 leads (limpia).
+- Nota: warning de hidratación en dev por radix Accordion (FAQ) — preexistente, benigno, no aparece en producción.
+
+Stage Summary:
+- Todas las correcciones del usuario implementadas y verificadas en navegador: DROPI, "Trabaja en tiempo real", foto HD moderada con Certificación Meta Partner, select de negocio en formulario, país capturado, Instagram en descarte, reservas de prueba borradas.
+- Panel admin privado 100% funcional: tuerca al final del sitio → clave WHAPI2027 → leads + respuestas + calendario + filtros (nombre, estado, país, fechas) + totales + eliminación.
+- Auditoría de conversión aplicada: Google Calendar en success (reduce no-shows), retención por Instagram en descarte, badge Meta Partner como señal de confianza, preselección de negocio (menos fricción).
+- Variables: NEXT_PUBLIC_META_PIXEL_ID, NEXT_PUBLIC_WHATSAPP_NUMBER, META_CAPI_PIXEL_ID, META_CAPI_ACCESS_TOKEN, ADMIN_KEY (opcional, default WHAPI2027).

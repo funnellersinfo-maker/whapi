@@ -6,9 +6,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   BadgeAlert,
   CalendarDays,
+  CalendarPlus,
   Check,
+  ChevronDown,
   ChevronLeft,
   Clock,
+  Instagram,
   Loader2,
   MessageCircle,
   MoonStar,
@@ -24,6 +27,7 @@ import {
   SESSION_SLOTS,
   formatSessionDate,
   getUpcomingDays,
+  googleCalendarUrl,
 } from "@/lib/calendar-utils";
 import { initPixel, trackCustom, trackStandard } from "@/lib/tracking";
 import type { BudgetConfirmed, QuizData } from "@/lib/types";
@@ -51,6 +55,7 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_name: "Escribe tu nombre para continuar.",
   invalid_whatsapp: "Escribe un número de WhatsApp válido (10 dígitos, empieza por 3).",
   invalid_email: "Revisa tu email o déjalo vacío.",
+  invalid_business: "Selecciona a qué se dedica tu negocio.",
   invalid_session: "Selecciona la fecha y hora de tu sesión.",
   invalid_visitor: "No pudimos identificarte. Recarga la página e inténtalo de nuevo.",
   invalid_quiz: "Faltan respuestas del diagnóstico. Vuelve al inicio del formulario.",
@@ -143,11 +148,14 @@ export function Quiz() {
   const [sessionDate, setSessionDate] = useState("");
   const [sessionTime, setSessionTime] = useState("");
   const [form, setForm] = useState({ name: "", whatsapp: "", email: "" });
+  const [businessSel, setBusinessSel] = useState("");
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [waSent, setWaSent] = useState(false);
 
   const visitorRef = useRef("");
+  const tzRef = useRef("");
+  const langRef = useRef("");
   const timers = useRef<number[]>([]);
   const cardRef = useRef<HTMLDivElement>(null);
   const calendarViewed = useRef(false);
@@ -157,6 +165,18 @@ export function Quiz() {
   useEffect(() => {
     initPixel();
     trackStandard("ViewContent", { content_name: "landing_quiz_view" });
+    try {
+      tzRef.current = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
+    } catch {
+      tzRef.current = "";
+    }
+    try {
+      langRef.current = Array.isArray(navigator.languages)
+        ? navigator.languages.join(",")
+        : navigator.language || "";
+    } catch {
+      langRef.current = "";
+    }
     try {
       const stored = window.localStorage.getItem("wa-sys-visitor");
       const id =
@@ -181,7 +201,13 @@ export function Quiz() {
       void fetch("/api/lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ visitorId, action, quiz }),
+        body: JSON.stringify({
+          visitorId,
+          action,
+          tz: tzRef.current,
+          lang: langRef.current,
+          quiz,
+        }),
       }).catch(() => undefined);
     },
     []
@@ -349,6 +375,10 @@ export function Quiz() {
       setFormError(ERROR_MESSAGES.invalid_email);
       return;
     }
+    if (!businessSel) {
+      setFormError(ERROR_MESSAGES.invalid_business);
+      return;
+    }
     if (!sessionDate || !sessionTime) {
       setFormError(ERROR_MESSAGES.invalid_session);
       return;
@@ -361,8 +391,17 @@ export function Quiz() {
         body: JSON.stringify({
           visitorId: visitorRef.current,
           action: "booked",
+          tz: tzRef.current,
+          lang: langRef.current,
           quiz: answers,
-          booking: { name, whatsapp: digits, email, sessionDate, sessionTime },
+          booking: {
+            name,
+            whatsapp: digits,
+            email,
+            businessType: businessSel,
+            sessionDate,
+            sessionTime,
+          },
         }),
       });
       const data = (await res.json().catch(() => null)) as
@@ -396,7 +435,7 @@ export function Quiz() {
     } finally {
       setSubmitting(false);
     }
-  }, [answers, form, scrollToCard, sessionDate, sessionTime]);
+  }, [answers, businessSel, form, scrollToCard, sessionDate, sessionTime]);
 
   const onConfirmWhatsapp = useCallback(() => {
     if (step.kind !== "success") return;
@@ -726,12 +765,21 @@ export function Quiz() {
               Puedes seguir aprendiendo sobre automatización y volver cuando
               estés listo.
             </p>
-            <div className="mt-8 w-full max-w-xs">
+            <div className="mt-8 w-full max-w-xs space-y-3">
               <a
                 href="#sistema"
                 className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-wa/40 bg-wa/[0.06] px-6 text-[12.5px] font-bold uppercase tracking-[0.06em] text-wa transition-all duration-200 hover:bg-wa/[0.12] active:scale-[0.97]"
               >
                 Quiero conocer más sobre el sistema
+              </a>
+              <a
+                href="https://www.instagram.com/julian_alejandro_morales/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-6 text-[12px] font-bold uppercase tracking-[0.06em] text-ink/80 transition-all duration-200 hover:border-white/30 hover:text-ink active:scale-[0.97]"
+              >
+                <Instagram className="h-4 w-4" />
+                Sígueme en Instagram
               </a>
             </div>
           </div>
@@ -810,7 +858,14 @@ export function Quiz() {
                 size="md"
                 dimmed={!(sessionDate && sessionTime)}
                 onClick={() => {
-                  if (sessionDate && sessionTime) go({ kind: "form" });
+                  if (sessionDate && sessionTime) {
+                    const b =
+                      typeof answers.businessType === "string"
+                        ? answers.businessType
+                        : "";
+                    setBusinessSel(BUSINESS_SUGGESTIONS.includes(b) ? b : "");
+                    go({ kind: "form" });
+                  }
                 }}
               >
                 Reservar mi sesión
@@ -881,6 +936,28 @@ export function Quiz() {
                   />
                 </div>
               </Field>
+              <Field label="¿A qué se dedica tu negocio?">
+                <div className="relative">
+                  <select
+                    value={businessSel}
+                    onChange={(e) => setBusinessSel(e.target.value)}
+                    className={cn(
+                      "h-12 w-full appearance-none rounded-xl border border-white/12 bg-white/[0.04] px-4 pr-10 text-[15px] outline-none transition-colors focus:border-wa/60",
+                      businessSel ? "text-ink" : "text-dim"
+                    )}
+                  >
+                    <option value="" disabled className="bg-panel text-dim">
+                      Selecciona una opción
+                    </option>
+                    {BUSINESS_SUGGESTIONS.map((s) => (
+                      <option key={s} value={s} className="bg-panel text-ink">
+                        {s}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-dim" />
+                </div>
+              </Field>
               <Field label="Email (opcional)">
                 <input
                   type="email"
@@ -946,6 +1023,17 @@ export function Quiz() {
                 <MessageCircle className="h-5 w-5" />
                 Confirmar por WhatsApp
               </CtaButton>
+            </div>
+            <div className="mt-3 w-full">
+              <a
+                href={googleCalendarUrl(sessionDate, sessionTime)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-6 text-[12px] font-bold uppercase tracking-[0.06em] text-ink/80 transition-all duration-200 hover:border-white/30 hover:text-ink active:scale-[0.97]"
+              >
+                <CalendarPlus className="h-4 w-4" />
+                Agregar a mi calendario
+              </a>
             </div>
             <p className="mt-4 text-[11.5px] text-dim/80">
               Si no se abrió WhatsApp, toca el botón verde.

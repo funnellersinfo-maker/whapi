@@ -23,7 +23,7 @@ const INTEGRATIONS = [
   { label: "Google", icon: Search },
   { label: "E-commerce", icon: ShoppingCart },
   { label: "CRM", icon: Database },
-  { label: "Droppy", icon: Package },
+  { label: "Dropi", icon: Package },
   { label: "Mastershop", icon: Store },
   { label: "API de Conversiones de Meta", icon: BarChart3 },
 ];

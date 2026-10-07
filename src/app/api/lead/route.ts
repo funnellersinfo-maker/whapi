@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sendConversionEvent } from '@/lib/conversions'
 import { buildLeadMessage, buildWaUrl } from '@/lib/whatsapp'
+import { countryFromTimezone } from '@/lib/geo'
 import type { BookingData, LeadApiRequest } from '@/lib/types'
 
 export const runtime = 'nodejs'
@@ -16,6 +17,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'invalid_visitor' }, { status: 400 })
     }
 
+    // --- country from client timezone/language (for admin reporting) ---
+    const country = countryFromTimezone(
+      typeof body?.tz === 'string' ? body.tz : undefined,
+      typeof body?.lang === 'string' ? body.lang : undefined
+    )
+
     // --- action: progress ---
     if (body.action === 'progress') {
       await db.lead.upsert({
@@ -24,9 +31,11 @@ export async function POST(request: Request) {
           visitorId,
           status: 'IN_PROGRESS',
           quiz: body.quiz ? JSON.stringify(body.quiz) : undefined,
+          ...(country ? { country } : {}),
         },
         update: {
           quiz: body.quiz ? JSON.stringify(body.quiz) : undefined,
+          ...(country ? { country } : {}),
         },
       })
       return NextResponse.json({ ok: true })
@@ -44,10 +53,12 @@ export async function POST(request: Request) {
           visitorId,
           status: 'DISQUALIFIED',
           quiz: quizJson,
+          ...(country ? { country } : {}),
         },
         update: {
           status: 'DISQUALIFIED',
           quiz: quizJson,
+          ...(country ? { country } : {}),
         },
       })
       sendConversionEvent('disqualified_lead').catch(() => {})
@@ -88,6 +99,13 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: false, error: 'invalid_email' }, { status: 400 })
       }
 
+      // business type (booking form)
+      const businessType =
+        typeof booking.businessType === 'string' ? booking.businessType.trim() : ''
+      if (businessType.length < 2 || businessType.length > 60) {
+        return NextResponse.json({ ok: false, error: 'invalid_business' }, { status: 400 })
+      }
+
       // session
       const sessionDate =
         typeof booking.sessionDate === 'string' ? booking.sessionDate.trim() : ''
@@ -101,11 +119,14 @@ export async function POST(request: Request) {
         name,
         whatsapp,
         email,
+        businessType,
         sessionDate,
         sessionTime,
       }
       const waMessage = buildLeadMessage(quiz, messageBooking)
-      const quizJson = JSON.stringify(quiz)
+      // The booking form's business selection is the authoritative value —
+      // sync it into the stored quiz so the admin panel shows it.
+      const quizJson = JSON.stringify({ ...quiz, businessType })
 
       await db.lead.upsert({
         where: { visitorId },
@@ -115,6 +136,7 @@ export async function POST(request: Request) {
           name,
           whatsapp,
           email: email || null,
+          ...(country ? { country } : {}),
           sessionDate,
           sessionTime,
           waMessage,
@@ -125,6 +147,7 @@ export async function POST(request: Request) {
           name,
           whatsapp,
           email: email || null,
+          ...(country ? { country } : {}),
           sessionDate,
           sessionTime,
           waMessage,

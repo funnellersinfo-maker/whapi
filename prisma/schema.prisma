@@ -20,6 +20,7 @@ model Lead {
   name        String?
   whatsapp    String?
   email       String?
+  country     String?
   sessionDate String?
   sessionTime String?
   waMessage   String?

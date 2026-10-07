@@ -1,16 +1,16 @@
 "use client";
 
-import { CalendarDays, MessageCircle, Timer, Video } from "lucide-react";
+import { BadgeCheck, CalendarDays, MessageCircle, Timer, Video } from "lucide-react";
 import { Reveal } from "./reveal";
 import { SectionHeading } from "./section-heading";
 
-const CREDENTIALS = [
-  "9+ años en marketing y automatización",
-  "Especialización reciente en IA aplicada",
-  "Meta Ads",
-  "WhatsApp API",
-  "Automatización comercial",
-  "Generación de clientes",
+const CREDENTIALS: { label: string; gold?: boolean }[] = [
+  { label: "9+ años en marketing y automatización" },
+  { label: "Certificación Meta Partner", gold: true },
+  { label: "Meta Ads" },
+  { label: "WhatsApp API" },
+  { label: "Automatización comercial" },
+  { label: "Generación de clientes" },
 ];
 
 const SESSION_CHIPS = [
@@ -37,11 +37,24 @@ export function About() {
               className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[radial-gradient(closest-side,rgba(37,211,102,0.16),transparent)] blur-2xl"
             />
             <div className="relative flex flex-col items-center text-center">
-              <div className="glow-wa-soft relative flex h-20 w-20 items-center justify-center rounded-full border border-wa/30 bg-[linear-gradient(150deg,#122619,#0a1410)]">
-                <span className="font-display text-[22px] font-bold tracking-tight text-wa">
-                  JA
-                </span>
-                <span className="absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full border-2 border-panel bg-wa-bright" />
+              <div className="relative">
+                <div
+                  aria-hidden="true"
+                  className="absolute -inset-3 rounded-full bg-[radial-gradient(closest-side,rgba(37,211,102,0.22),transparent)] blur-md"
+                />
+                <picture>
+                  <source srcSet="/img/julio.avif" type="image/avif" />
+                  <source srcSet="/img/julio.webp" type="image/webp" />
+                  <img
+                    src="/img/julio.jpg"
+                    alt="Julián Alejandro — especialista en marketing y automatización comercial"
+                    width={128}
+                    height={128}
+                    decoding="async"
+                    className="glow-wa-soft relative h-32 w-32 rounded-full border-2 border-wa/45 object-cover ring-4 ring-[#0d1112]"
+                  />
+                </picture>
+                <span className="animate-pulse-dot absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full border-[3px] border-[#0d1112] bg-wa-bright" />
               </div>
               <p className="font-display mt-4 text-[20px] font-bold uppercase leading-tight text-ink">
                 Julián Alejandro
@@ -53,10 +66,15 @@ export function About() {
               <div className="mt-5 flex flex-wrap justify-center gap-1.5">
                 {CREDENTIALS.map((c) => (
                   <span
-                    key={c}
-                    className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium text-ink/80"
+                    key={c.label}
+                    className={
+                      c.gold
+                        ? "inline-flex items-center gap-1.5 rounded-full border border-gold/40 bg-gold/[0.09] px-3 py-1.5 text-[11px] font-semibold text-[#e9d3a3]"
+                        : "rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[11px] font-medium text-ink/80"
+                    }
                   >
-                    {c}
+                    {c.gold ? <BadgeCheck className="h-3.5 w-3.5 text-gold" /> : null}
+                    {c.label}
                   </span>
                 ))}
               </div>
