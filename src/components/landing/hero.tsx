@@ -69,10 +69,10 @@ export function Hero() {
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.55, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-          className="font-display text-[clamp(20px,4vw,34px)] font-bold uppercase leading-[1.14] tracking-[0.06em] text-ink"
+          className="font-display text-[clamp(17px,3.1vw,25px)] font-bold uppercase leading-[1.16] tracking-[0.06em] text-ink"
         >
           <span className="block">No te faltan mensajes.</span>
-          <span className="mt-[0.32em] block text-wa [text-shadow:0_0_28px_rgba(37,211,102,0.5)]">
+          <span className="mt-[0.36em] block text-wa [text-shadow:0_0_24px_rgba(37,211,102,0.45)]">
             Te falta un sistema.
           </span>
         </motion.p>
