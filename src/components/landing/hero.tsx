@@ -50,10 +50,10 @@ export function Hero() {
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_62%_at_50%_0%,transparent_72%,rgba(5,7,8,0.26)_100%)]"
         />
-        {/* Light seam between the visual and the page */}
+        {/* Fundido inferior: la imagen se difumina y empata con el fondo de la página */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent_4%,rgba(37,211,102,0.35)_50%,transparent_96%)]"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[17%] bg-[linear-gradient(to_bottom,rgba(5,7,8,0)_0%,rgba(5,7,8,0.34)_36%,rgba(5,7,8,0.7)_62%,rgba(5,7,8,0.94)_86%,#050708_100%)]"
         />
       </div>
 
