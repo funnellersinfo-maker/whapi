@@ -1,13 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  output: 'export',
+  images: { unoptimized: true },
+  typescript: { ignoreBuildErrors: true },
   reactStrictMode: false,
-  allowedDevOrigins: ["*.space-z.ai", "*.z.ai"],
-  devIndicators: false,
 };
 
 export default nextConfig;

@@ -25,9 +25,10 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "¿Te escriben por WhatsApp, pero no vendes? | Convierte tus chats en ventas",
+  metadataBase: new URL("https://whapi.pages.dev"),
+  title: "¿Te escriben por WhatsApp y no vendes? Convierte chats en ventas",
   description:
-    "No te faltan mensajes. Te falta un sistema. Descubre cómo una IA sobre la API oficial de WhatsApp atiende, califica y cierra ventas por ti, 24/7. Diagnóstico de tu negocio en menos de 60 segundos.",
+    "No te faltan mensajes: te falta un sistema. Una IA sobre la API oficial de WhatsApp que atiende, califica y cierra ventas 24/7. Haz el diagnóstico gratis.",
   keywords: [
     "WhatsApp API",
     "automatización de ventas",
@@ -37,11 +38,27 @@ export const metadata: Metadata = {
     "seguimiento de leads",
     "Colombia",
   ],
+  icons: {
+    icon: [
+      { url: "/logo.svg", type: "image/svg+xml" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon.png", sizes: "180x180", type: "image/png" }],
+  },
   openGraph: {
     title: "¿Te escriben por WhatsApp, pero no vendes?",
     description:
       "No te faltan mensajes. Te falta un sistema. Diagnóstico de tu negocio en 60 segundos.",
-    images: ["/img/og.jpg"],
+    url: "https://whapi.pages.dev",
+    siteName: "WHAPI",
+    images: [
+      {
+        url: "/img/og.jpg",
+        width: 1200,
+        height: 630,
+        alt: "WHAPI — Convierte tus chats de WhatsApp en ventas automáticas",
+      },
+    ],
     type: "website",
     locale: "es_CO",
   },

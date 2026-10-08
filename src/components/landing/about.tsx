@@ -50,6 +50,7 @@ export function About() {
                     alt="Julián Alejandro — especialista en marketing y automatización comercial"
                     width={128}
                     height={128}
+                    loading="lazy"
                     decoding="async"
                     className="glow-wa-soft relative h-32 w-32 rounded-full border-2 border-wa/45 object-cover ring-4 ring-[#0d1112]"
                   />

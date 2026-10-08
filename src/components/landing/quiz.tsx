@@ -30,7 +30,8 @@ import {
   googleCalendarUrl,
 } from "@/lib/calendar-utils";
 import { initPixel, trackCustom, trackStandard } from "@/lib/tracking";
-import type { BudgetConfirmed, QuizData } from "@/lib/types";
+import { buildLeadMessage, buildWaUrl } from "@/lib/whatsapp";
+import type { BudgetConfirmed, BookingData, QuizData } from "@/lib/types";
 import { CtaButton } from "./cta-button";
 import { Reveal } from "./reveal";
 import { cn } from "@/lib/utils";
@@ -57,10 +58,6 @@ const ERROR_MESSAGES: Record<string, string> = {
   invalid_email: "Revisa tu email o déjalo vacío.",
   invalid_business: "Selecciona a qué se dedica tu negocio.",
   invalid_session: "Selecciona la fecha y hora de tu sesión.",
-  invalid_visitor: "No pudimos identificarte. Recarga la página e inténtalo de nuevo.",
-  invalid_quiz: "Faltan respuestas del diagnóstico. Vuelve al inicio del formulario.",
-  invalid_booking: "Faltan datos de la reserva. Inténtalo de nuevo.",
-  server_error: "No pudimos guardar tu sesión. Inténtalo de nuevo.",
 };
 
 function progressOf(step: Step): number {
@@ -153,9 +150,6 @@ export function Quiz() {
   const [submitting, setSubmitting] = useState(false);
   const [waSent, setWaSent] = useState(false);
 
-  const visitorRef = useRef("");
-  const tzRef = useRef("");
-  const langRef = useRef("");
   const timers = useRef<number[]>([]);
   const cardRef = useRef<HTMLDivElement>(null);
   const calendarViewed = useRef(false);
@@ -165,53 +159,10 @@ export function Quiz() {
   useEffect(() => {
     initPixel();
     trackStandard("ViewContent", { content_name: "landing_quiz_view" });
-    try {
-      tzRef.current = Intl.DateTimeFormat().resolvedOptions().timeZone ?? "";
-    } catch {
-      tzRef.current = "";
-    }
-    try {
-      langRef.current = Array.isArray(navigator.languages)
-        ? navigator.languages.join(",")
-        : navigator.language || "";
-    } catch {
-      langRef.current = "";
-    }
-    try {
-      const stored = window.localStorage.getItem("wa-sys-visitor");
-      const id =
-        stored ??
-        (typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `v-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`);
-      if (!stored) window.localStorage.setItem("wa-sys-visitor", id);
-      visitorRef.current = id;
-    } catch {
-      visitorRef.current = `v-${Date.now()}`;
-    }
     return () => {
       timers.current.forEach((t) => window.clearTimeout(t));
     };
   }, []);
-
-  const saveProgress = useCallback(
-    (quiz: Partial<QuizData>, action: "progress" | "disqualified" = "progress") => {
-      const visitorId = visitorRef.current;
-      if (!visitorId) return;
-      void fetch("/api/lead", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          visitorId,
-          action,
-          tz: tzRef.current,
-          lang: langRef.current,
-          quiz,
-        }),
-      }).catch(() => undefined);
-    },
-    []
-  );
 
   const scrollToCard = useCallback(() => {
     requestAnimationFrame(() => {
@@ -268,7 +219,6 @@ export function Quiz() {
       setPending(value);
       const updated = { ...answers, [field]: value } as Partial<QuizData>;
       setAnswers(updated);
-      saveProgress(updated);
 
       if (field === "automationPrev") {
         if (value !== "No, sería la primera vez") return; // reveal optional input
@@ -277,7 +227,7 @@ export function Quiz() {
       }
       schedule(() => advanceFrom(step.index), 480);
     },
-    [advanceFrom, answers, pending, saveProgress, schedule, step]
+    [advanceFrom, answers, pending, schedule, step]
   );
 
   const onContinueQuestion = useCallback(() => {
@@ -286,21 +236,15 @@ export function Quiz() {
     if (q.id === "businessType") {
       const value = businessText.trim();
       if (value.length < 2) return;
-      const updated = { ...answers, businessType: value };
-      setAnswers(updated);
-      saveProgress(updated);
+      setAnswers({ ...answers, businessType: value });
     } else if (q.id === "trafficSources") {
       if (multi.length === 0) return;
-      const updated = { ...answers, trafficSources: multi };
-      setAnswers(updated);
-      saveProgress(updated);
+      setAnswers({ ...answers, trafficSources: multi });
     } else if (q.id === "automationPrev") {
-      const updated = { ...answers, automationTool: toolText.trim() || undefined };
-      setAnswers(updated);
-      saveProgress(updated);
+      setAnswers({ ...answers, automationTool: toolText.trim() || undefined });
     }
     advanceFrom(step.index);
-  }, [advanceFrom, answers, businessText, multi, saveProgress, step, toolText]);
+  }, [advanceFrom, answers, businessText, multi, step, toolText]);
 
   const toggleMulti = useCallback((opt: string) => {
     setMulti((prev) => {
@@ -319,7 +263,6 @@ export function Quiz() {
       const updated = { ...answers, budgetConfirmed: value };
       setAnswers(updated);
       if (value === "NO_POR_AHORA") {
-        saveProgress(updated, "disqualified");
         trackCustom("disqualified_lead");
         try {
           window.dispatchEvent(new Event("landing:quiz-completed"));
@@ -328,13 +271,12 @@ export function Quiz() {
         }
         schedule(() => go({ kind: "disqualified" }), 650);
       } else {
-        saveProgress(updated);
         trackCustom("qualified_lead");
         trackStandard("CompleteRegistration");
         schedule(() => go({ kind: "analyzing" }), 650);
       }
     },
-    [answers, go, pending, saveProgress, schedule]
+    [answers, go, pending, schedule]
   );
 
   useEffect(() => {
@@ -358,7 +300,7 @@ export function Quiz() {
     return parts.join(" ");
   };
 
-  const onBook = useCallback(async () => {
+  const onBook = useCallback(() => {
     setFormError("");
     const name = form.name.trim();
     const digits = form.whatsapp.replace(/\D/g, "");
@@ -384,57 +326,31 @@ export function Quiz() {
       return;
     }
     setSubmitting(true);
+    const booking: BookingData = {
+      name,
+      whatsapp: `+57 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`,
+      email,
+      businessType: businessSel,
+      sessionDate,
+      sessionTime,
+    };
+    const waUrl = buildWaUrl(buildLeadMessage(answers as QuizData, booking));
+    trackCustom("appointment_booked");
+    trackStandard("Lead");
+    trackStandard("Schedule");
     try {
-      const res = await fetch("/api/lead", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          visitorId: visitorRef.current,
-          action: "booked",
-          tz: tzRef.current,
-          lang: langRef.current,
-          quiz: answers,
-          booking: {
-            name,
-            whatsapp: digits,
-            email,
-            businessType: businessSel,
-            sessionDate,
-            sessionTime,
-          },
-        }),
-      });
-      const data = (await res.json().catch(() => null)) as
-        | { ok?: boolean; waUrl?: string; error?: string }
-        | null;
-      if (!res.ok || !data?.ok || !data.waUrl) {
-        setFormError(
-          ERROR_MESSAGES[data.error ?? "server_error"] ??
-            ERROR_MESSAGES.server_error
-        );
-        setSubmitting(false);
-        return;
-      }
-      trackCustom("appointment_booked");
-      trackStandard("Lead");
-      trackStandard("Schedule");
-      try {
-        window.dispatchEvent(new Event("landing:booking-complete"));
-      } catch {
-        /* noop */
-      }
-      setStep({ kind: "success", waUrl: data.waUrl });
-      scrollToCard();
-      try {
-        window.open(data.waUrl, "_blank", "noopener,noreferrer");
-      } catch {
-        /* popup blocked: user has the button */
-      }
+      window.dispatchEvent(new Event("landing:booking-complete"));
     } catch {
-      setFormError("No pudimos guardar tu sesión. Revisa tu conexión e inténtalo de nuevo.");
-    } finally {
-      setSubmitting(false);
+      /* noop */
     }
+    setStep({ kind: "success", waUrl });
+    scrollToCard();
+    try {
+      window.open(waUrl, "_blank", "noopener,noreferrer");
+    } catch {
+      /* popup blocked: user has the button */
+    }
+    setSubmitting(false);
   }, [answers, businessSel, form, scrollToCard, sessionDate, sessionTime]);
 
   const onConfirmWhatsapp = useCallback(() => {
@@ -922,6 +838,7 @@ export function Quiz() {
                     +57
                   </span>
                   <input
+                    type="tel"
                     value={form.whatsapp}
                     onChange={(e) =>
                       setForm((f) => ({

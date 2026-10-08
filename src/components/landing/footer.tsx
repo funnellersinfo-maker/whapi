@@ -1,5 +1,3 @@
-import { AdminGear } from "@/components/admin/admin-panel";
-
 export function Footer() {
   const year = new Date().getFullYear();
   return (
@@ -14,9 +12,6 @@ export function Footer() {
         <p className="mt-4 text-[11px] text-dim/60">
           © {year}. Todos los derechos reservados.
         </p>
-        <div className="mt-6 flex justify-center">
-          <AdminGear />
-        </div>
       </div>
     </footer>
   );
