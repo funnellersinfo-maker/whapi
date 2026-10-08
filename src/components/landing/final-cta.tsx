@@ -23,8 +23,8 @@ export function FinalCta() {
         </Reveal>
         <Reveal delay={0.12}>
           <p className="mx-auto mt-5 max-w-sm text-pretty text-[15px] leading-relaxed text-dim">
-            El diagnóstico toma menos de 2 minutos. Si tu negocio es candidato,
-            reservas tu sesión directamente conmigo.
+            El diagnóstico toma menos de 60 segundos. Si tu negocio es
+            candidato, reservas tu sesión directamente conmigo.
           </p>
         </Reveal>
         <Reveal delay={0.18} className="mt-9">
