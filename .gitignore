@@ -52,3 +52,18 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# local database (SQLite)
+/db/
+
+# sandbox / environment-specific
+/.zscripts/
+/agent-ctx/
+/tool-results/
+/examples/
+/mini-services/
+/tests/
+/download/
+/upload/
+Caddyfile
+worklog.md
