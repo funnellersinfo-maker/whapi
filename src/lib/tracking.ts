@@ -1,5 +1,7 @@
 export const TRACKING = {
-  pixelId: process.env.NEXT_PUBLIC_META_PIXEL_ID ?? '',
+  // Meta Pixel de la cuenta (una variable NEXT_PUBLIC_META_PIXEL_ID en build
+  // siempre puede sobreescribirlo).
+  pixelId: process.env.NEXT_PUBLIC_META_PIXEL_ID ?? '2816572202076850',
   whatsappNumber: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '573112441018',
 }
 

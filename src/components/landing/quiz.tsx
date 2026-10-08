@@ -336,8 +336,12 @@ export function Quiz() {
     };
     const waUrl = buildWaUrl(buildLeadMessage(answers as QuizData, booking));
     trackCustom("appointment_booked");
-    trackStandard("Lead");
-    trackStandard("Schedule");
+    // "Cliente potencial" (Lead) — dispara en el momento exacto en que la
+    // reserva se confirma y se abre WhatsApp con el mensaje estructurado.
+    trackStandard("Lead", {
+      content_name: "sesion_diagnostico_whatsapp",
+    });
+    trackStandard("Schedule", { content_name: "sesion_diagnostico" });
     try {
       window.dispatchEvent(new Event("landing:booking-complete"));
     } catch {

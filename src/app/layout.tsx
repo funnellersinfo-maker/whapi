@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
+import { TRACKING } from "@/lib/tracking";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -76,6 +77,18 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${display.variable} antialiased bg-background text-foreground`}
       >
         {children}
+        {/* Meta Pixel — fallback <noscript> oficial (visitantes sin JavaScript) */}
+        {TRACKING.pixelId ? (
+          <noscript>
+            <img
+              height="1"
+              width="1"
+              style={{ display: "none" }}
+              alt=""
+              src={`https://www.facebook.com/tr?id=${TRACKING.pixelId}&ev=PageView&noscript=1`}
+            />
+          </noscript>
+        ) : null}
       </body>
     </html>
   );
