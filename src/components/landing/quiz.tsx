@@ -828,6 +828,8 @@ export function Quiz() {
             <div className="mt-5 space-y-3.5">
               <Field label="Nombre">
                 <input
+                  name="name"
+                  id="name"
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="Tu nombre"
@@ -843,6 +845,8 @@ export function Quiz() {
                   </span>
                   <input
                     type="tel"
+                    name="phone"
+                    id="phone"
                     value={form.whatsapp}
                     onChange={(e) =>
                       setForm((f) => ({
@@ -882,6 +886,8 @@ export function Quiz() {
               <Field label="Email (opcional)">
                 <input
                   type="email"
+                  name="email"
+                  id="email"
                   value={form.email}
                   onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
                   placeholder="tucorreo@ejemplo.com"
