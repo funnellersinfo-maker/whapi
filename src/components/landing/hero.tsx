@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { CtaButton } from "./cta-button";
 
 const HERO_BLUR =
-  "data:image/jpeg;base64,/9j/2wBDABUOEBIQDRUSERIYFhUZHzQiHx0dH0AuMCY0TENQT0tDSUhUXnlmVFlyWkhJaY9qcnyAh4iHUWWUn5ODnXmEh4L/2wBDARYYGB8cHz4iIj6CVklWgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoL/wAARCAAVABgDASIAAhEBAxEB/8QAGgABAAIDAQAAAAAAAAAAAAAAAAIDAQQFBv/EACQQAAIBBAICAQUAAAAAAAAAAAABAgMABBESIRNRYRQxgZHR/8QAFwEAAwEAAAAAAAAAAAAAAAAAAAEDAv/EABoRAAIDAQEAAAAAAAAAAAAAAAABAhEhQWH/2gAMAwEAAhEDEQA/APPBFe4IVzo2cs3qrLW0Rr22hLhxIATr67qFnx810sjIwAjOpyCcn8V07HjXsZRO0sR8Z+5Vv580khszyvBwWlr5oJXdywUIwBpU+euZ/pYdgFO+es+vkUolfBL04dreSQIQoRg572XJ/dbachKiBdYyAOsrSlZaRGcVZQ11LcNmzTTEeWAC4BpSlFIrHFh//2Q==";
+  "data:image/jpeg;base64,/9j/2wBDABIMDRANCxIQDhAUExIVGywdGxgYGzYnKSAsQDlEQz85Pj1HUGZXR0thTT0+WXlaYWltcnNyRVV9hnxvhWZwcm7/2wBDARMUFBsXGzQdHTRuST5Jbm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm5ubm7/wAARCAAiACgDASIAAhEBAxEB/8QAGwAAAgIDAQAAAAAAAAAAAAAAAAUDBAECBgf/xAAkEAACAgIBBAMAAwAAAAAAAAABAgADBBEFEyExUQYSIhZBYf/EABcBAQEBAQAAAAAAAAAAAAAAAAIBAAP/xAAbEQEBAQEAAwEAAAAAAAAAAAABABECAxIhMf/aAAwDAQACEQMRAD8AR5lLVW/s7Mw+PbkVK4G9SJsjqHdh2ZZXk+jWiovYHvADkvm0JxnW1VcaMdfxm2+lXrbyIt6753IVuq9tzv8ADX6UIv8AkZDovP8AkeJs43QtGyYTovkXTtzlSw9gIQdOTeS5GnFe7I6K+YxTgHLFS8rcdkKM8WOfqPcd3Z6Aj6WAg+TLufseugco8Pi7KCCrj8xzVyFykKNHX9ygMyhl11QJoMzHxwQLAZvYi+QZZ8gyrLM/vCV8mxMvOO20vuEj0XQ1Pkvm2zrzCEsGxs+zBifcISUgQhCaV//Z";
 
 export function Hero() {
   return (
@@ -53,7 +53,7 @@ export function Hero() {
         {/* Fundido inferior: la imagen se difumina y empata con el fondo de la página */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-[17%] bg-[linear-gradient(to_bottom,rgba(5,7,8,0)_0%,rgba(5,7,8,0.34)_36%,rgba(5,7,8,0.7)_62%,rgba(5,7,8,0.94)_86%,#050708_100%)]"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[8.6%] bg-[linear-gradient(to_bottom,rgba(5,7,8,0)_0%,rgba(5,7,8,0.22)_26%,rgba(5,7,8,0.52)_52%,rgba(5,7,8,0.82)_78%,#050708_100%)]"
         />
       </div>
 
@@ -61,6 +61,22 @@ export function Hero() {
         ¿Te escriben por WhatsApp, pero no vendes? No te faltan mensajes: te
         falta un sistema.
       </h1>
+
+      {/* Punchline: antes horneada en la imagen, ahora texto real que resalta */}
+      <div className="relative z-[6] mx-auto -mt-[4.6vw] w-full max-w-2xl px-4 pb-1 text-center">
+        <motion.p
+          aria-hidden="true"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+          className="font-display text-[clamp(20px,4vw,34px)] font-bold uppercase leading-[1.14] tracking-[0.06em] text-ink"
+        >
+          <span className="block">No te faltan mensajes.</span>
+          <span className="mt-[0.32em] block text-wa [text-shadow:0_0_28px_rgba(37,211,102,0.5)]">
+            Te falta un sistema.
+          </span>
+        </motion.p>
+      </div>
 
       {/* Soft transition: green glow + shadow carrying the eye into the page */}
       <div
