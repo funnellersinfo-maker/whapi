@@ -45,10 +45,10 @@ export function Hero() {
           </picture>
         </motion.div>
 
-        {/* Vignette for depth */}
+        {/* Vignette suave para profundidad (reducida: imagen más brillante) */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_62%_at_50%_0%,transparent_62%,rgba(5,7,8,0.5)_100%)]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_62%_at_50%_0%,transparent_72%,rgba(5,7,8,0.26)_100%)]"
         />
         {/* Light seam between the visual and the page */}
         <div
