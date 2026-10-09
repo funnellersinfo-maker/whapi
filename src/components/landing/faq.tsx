@@ -73,7 +73,7 @@ function getFaqs(minBudget: string) {
 }
 
 export function Faq() {
-  // El presupuesto mínimo se adapta al mercado de la URL (COP / USD).
+  // El presupuesto mínimo se adapta al mercado de la URL (COP / MXN).
   const faqs = useMemo(() => getFaqs(MARKETS[detectMarket()].minBudget), []);
   return (
     <section id="faq" className="relative py-16 sm:py-24">

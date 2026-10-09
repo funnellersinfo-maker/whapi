@@ -3,8 +3,9 @@
  *
  * Una sola página sirve Colombia (por defecto) y México:
  *  - https://whapi.pages.dev/          → Colombia (COP)
- *  - https://whapi.pages.dev/mx        → México (USD)
+ *  - https://whapi.pages.dev/mx        → México (MXN al cambio)
  *  - https://whapi.pages.dev/?mx=1     → México (alias para ads)
+ *  - subdominio mx.* / mexico.*        → México (landing del subdominio)
  *
  * El mercado se detecta en cliente (query param o prefijo de ruta) y adapta
  * precios, teléfono, zona horaria y copy. Los leads de ambos mercados llegan
@@ -69,14 +70,17 @@ const MX: MarketConfig = {
   country: "México",
   flag: "🇲🇽",
   code: "MX",
-  minBudget: "$390 USD",
+  // $390 USD convertidos al cambio: 1 USD ≈ $18.20 MXN (Banxico/Investing,
+  // nov 2025) → $390 × 18.20 ≈ $7,100 MXN. Los tramos se redondearon a
+  // cifras limpias conservando el equivalente de los montos en USD.
+  minBudget: "$7,100 MXN (≈ $390 USD)",
   budgetOptions: [
-    "Menos de $390 USD",
-    "Entre $390 y $550 USD",
-    "Entre $550 y $800 USD",
-    "Entre $800 y $1.300 USD",
-    "Entre $1.300 y $1.800 USD",
-    "Más de $1.800 USD",
+    "Menos de $7,100 MXN",
+    "Entre $7,100 y $10,000 MXN",
+    "Entre $10,000 y $14,500 MXN",
+    "Entre $14,500 y $23,500 MXN",
+    "Entre $23,500 y $33,000 MXN",
+    "Más de $33,000 MXN",
   ],
   phonePrefix: "+52",
   phonePlaceholder: "55 1234 5678",
@@ -92,13 +96,18 @@ const MX: MarketConfig = {
 export const MARKETS: Record<Market, MarketConfig> = { CO, MX };
 
 /**
- * Detecta el mercado desde la URL. Orden: query param explícito (?mx=1,
- * ?pais=mx, ?market=mx) → prefijo de ruta /mx → Colombia por defecto.
- * Solo debe llamarse en cliente (devuelve "CO" en el servidor).
+ * Detecta el mercado desde la URL. Orden: ruta /mx o subdominio mx./mexico.
+ * → query param (?mx=1, ?pais=mx) → Colombia por defecto. La ruta /mx y el
+ * subdominio de México sirven SIEMPRE la versión México (ningún parámetro
+ * puede cambiarlo). Solo debe llamarse en cliente (devuelve "CO" en el
+ * servidor).
  */
 export function detectMarket(): Market {
   if (typeof window === "undefined") return "CO";
   try {
+    if (/^\/mx\/?$/i.test(window.location.pathname)) return "MX";
+    const host = window.location.hostname.toLowerCase();
+    if (/^(mx|mexico)\./.test(host)) return "MX";
     const q = new URLSearchParams(window.location.search);
     const explicit = (
       q.get("pais") ??
@@ -108,7 +117,6 @@ export function detectMarket(): Market {
     ).toLowerCase();
     if (explicit === "mx" || q.get("mx") === "1") return "MX";
     if (explicit === "co" || q.get("co") === "1") return "CO";
-    if (/^\/mx\/?$/i.test(window.location.pathname)) return "MX";
   } catch {
     /* URL ilegible: default CO */
   }

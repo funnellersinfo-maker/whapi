@@ -35,7 +35,7 @@ export const NO_TRAFFIC_OPTION =
 
 /**
  * Preguntas del diagnóstico. La única que cambia por mercado es la de
- * capacidad de inversión (COP en Colombia, USD en México); el resto del
+ * capacidad de inversión (COP en Colombia, MXN en México); el resto del
  * cuestionario es idéntico.
  */
 export function getQuestions(market: Market): QuestionDef[] {
