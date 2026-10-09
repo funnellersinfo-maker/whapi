@@ -30,6 +30,7 @@ interface LeadMeta {
 interface LeadFull extends LeadMeta {
   email?: string | null;
   businessType?: string | null;
+  fitTier?: string | null;
   quiz?: Record<string, unknown> | null;
   userAgent?: string | null;
   updatedAt?: string;
@@ -103,15 +104,18 @@ function fmtQuizValue(v: unknown): string {
 
 function StatusBadge({ status }: { status: string }) {
   const booked = status === "booked";
+  const cot = status === "cotizacion";
   return (
     <span
       className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.12em] ${
         booked
           ? "border-wa/30 bg-wa/10 text-wa"
-          : "border-amber-400/30 bg-amber-400/10 text-amber-300"
+          : cot
+            ? "border-gold/40 bg-gold/10 text-gold"
+            : "border-amber-400/30 bg-amber-400/10 text-amber-300"
       }`}
     >
-      {booked ? "Reservado" : "Descalificado"}
+      {booked ? "Reservado" : cot ? "Cotización" : "Descalificado"}
     </span>
   );
 }
@@ -282,7 +286,9 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
   const [leads, setLeads] = useState<LeadMeta[] | null>(null);
   const [loadError, setLoadError] = useState<"auth" | "offline" | null>(null);
   const [query, setQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"all" | "booked" | "descalificado">("all");
+  const [statusFilter, setStatusFilter] = useState<
+    "all" | "booked" | "cotizacion" | "descalificado"
+  >("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, LeadFull>>({});
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -367,6 +373,7 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
   const kpis = useMemo(() => {
     const list = leads ?? [];
     const booked = list.filter((l) => l.status === "booked");
+    const quotes = list.filter((l) => l.status === "cotizacion");
     const todayKey = new Intl.DateTimeFormat("en-CA", {
       timeZone: "America/Bogota",
     }).format(new Date());
@@ -375,7 +382,7 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
     const upcoming = booked.filter(
       (l) => l.sessionDate && l.sessionDate >= todayKey && l.sessionDate <= week
     ).length;
-    return { total: list.length, booked: booked.length, today, upcoming };
+    return { total: list.length, booked: booked.length, quotes: quotes.length, today, upcoming };
   }, [leads]);
 
   const toggleExpand = (id: string) => {
@@ -464,9 +471,10 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
         {tab === "leads" && (
         <>
         {/* KPIs */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <KpiCard value={kpis.total} label="Total" />
           <KpiCard value={kpis.booked} label="Reservados" />
+          <KpiCard value={kpis.quotes} label="Cotizaciones" />
           <KpiCard value={kpis.today} label="Hoy" />
           <KpiCard value={kpis.upcoming} label="Sesiones 7d" />
         </div>
@@ -487,11 +495,12 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
               className={`w-full rounded-xl border border-white/10 bg-black/40 py-2.5 pl-9 pr-3 text-[13px] text-ink placeholder:text-dim/50 ${FOCUS_RING}`}
             />
           </div>
-          <div className="flex gap-1.5" role="group" aria-label="Filtrar por estado">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar por estado">
             {(
               [
                 ["all", "Todos"],
                 ["booked", "Reservados"],
+                ["cotizacion", "Cotizaciones"],
                 ["descalificado", "Descalif."],
               ] as const
             ).map(([value, label]) => (
@@ -577,7 +586,10 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="truncate text-[13.5px] font-semibold text-ink">
-                            {l.name || "Sin nombre"}
+                            {l.name ||
+                              (l.status === "cotizacion"
+                                ? "Pidió cotización"
+                                : "Sin nombre")}
                           </p>
                           <StatusBadge status={l.status} />
                           <MarketBadge market={l.market ?? full?.market} />
@@ -655,6 +667,18 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
                               </div>
                             );
                           })}
+                          {full.fitTier && (
+                            <div>
+                              <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-dim">
+                                Perfil
+                              </dt>
+                              <dd className="mt-0.5 text-[12.5px] text-ink">
+                                {full.fitTier === "alto"
+                                  ? "Alto potencial — priorizar"
+                                  : "Medio potencial"}
+                              </dd>
+                            </div>
+                          )}
                           {full.market && (
                             <div>
                               <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-dim">

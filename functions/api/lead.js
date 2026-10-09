@@ -3,7 +3,9 @@
  *
  * Lo llama el quiz del landing (fire-and-forget) en dos momentos:
  *  - status "booked": reserva confirmada, se abre WhatsApp con el mensaje.
- *  - status "descalificado": no pasa el filtro de presupuesto.
+ *  - status "cotizacion": no pasa el filtro de presupuesto — entra al camino
+ *    de cotización personalizada (antes era "descalificado").
+ *  - status "descalificado": registros históricos (se sigue aceptando).
  *
  * El valor completo incluye las respuestas del diagnóstico; en metadata se
  * guarda un resumen compacto para listar sin leer cada entrada.
@@ -11,7 +13,7 @@
 
 const TTL_SECONDS = 90 * 24 * 60 * 60; // 90 días
 const MAX_BODY_BYTES = 16 * 1024;
-const ALLOWED_STATUS = new Set(["booked", "descalificado"]);
+const ALLOWED_STATUS = new Set(["booked", "cotizacion", "descalificado"]);
 
 function json(body, status) {
   return new Response(JSON.stringify(body), {
@@ -55,6 +57,7 @@ export async function onRequestPost(context) {
     sessionTime: str(body.sessionTime, 20),
     origin: str(body.origin, 200),
     market: str(body.market, 40),
+    fitTier: str(body.fitTier, 12),
     quiz: typeof body.quiz === "object" && body.quiz !== null ? body.quiz : null,
     userAgent: str(body.userAgent, 300),
     language: str(body.language, 20),

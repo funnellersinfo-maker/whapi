@@ -72,6 +72,60 @@ LEAD CALIFICADO
 ${utmSummary()}`
 }
 
+/**
+ * Mensaje para el visitante que no pasa el filtro de presupuesto pero pide
+ * una cotización personalizada. Llega al mismo WhatsApp con todo el contexto
+ * del diagnóstico (para cotizar a la medida) y el perfil de potencial.
+ */
+export function buildQuoteMessage(
+  quiz: QuizData,
+  market?: Pick<MarketConfig, 'country' | 'flag'>,
+  fit?: { score: number; tier: 'alto' | 'medio' }
+): string {
+  const automationPrev = quiz.automationTool
+    ? `${quiz.automationPrev} (${quiz.automationTool})`
+    : quiz.automationPrev
+
+  return `💎 COTIZACIÓN PERSONALIZADA
+(terminó el diagnóstico — presupuesto por debajo del mínimo)
+
+🏢 Negocio:
+${quiz.businessType}
+
+💬 Mensajes diarios:
+${quiz.dailyMessages}
+
+📈 Fuentes de tráfico:
+${quiz.trafficSources.join(', ')}
+
+⚙️ Sistema actual:
+${quiz.currentSystem}
+
+🤖 Automatización previa:
+${automationPrev}
+
+⏱️ Momento para implementar:
+${quiz.implementationTiming}
+
+👥 Decisión:
+${quiz.decisionMaker}
+
+💰 Capacidad de inversión:
+${quiz.investmentCapacity}
+
+💵 Presupuesto mínimo:
+NO POR AHORA — pidió cotización a su medida
+
+🌎 País:
+${market ? `${market.flag} ${market.country}` : '🇨🇴 Colombia'}
+
+🏆 Perfil:
+${fit ? `${fit.tier === 'alto' ? 'ALTO' : 'MEDIO'} potencial (${fit.score}/12)` : '—'}
+
+📣 Origen:
+${utmSummary()}`
+}
+
 export function buildWaUrl(
   message: string,
   number: string = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? '573112441018'

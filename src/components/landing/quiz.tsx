@@ -16,6 +16,7 @@ import {
   MessageCircle,
   MoonStar,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import {
   BUSINESS_SUGGESTIONS,
@@ -33,7 +34,7 @@ import { initPixel, trackCustom, trackStandard } from "@/lib/tracking";
 import { captureUtm, utmSummary } from "@/lib/utm";
 import { MARKETS, detectMarket } from "@/lib/market";
 import { track as anTrack, flushAnalytics } from "@/lib/analytics";
-import { buildLeadMessage, buildWaUrl } from "@/lib/whatsapp";
+import { buildLeadMessage, buildQuoteMessage, buildWaUrl } from "@/lib/whatsapp";
 import type { BudgetConfirmed, BookingData, QuizData } from "@/lib/types";
 import { CtaButton } from "./cta-button";
 import { Reveal } from "./reveal";
@@ -74,6 +75,66 @@ function progressOf(step: Step): number {
     default:
       return 100;
   }
+}
+
+/**
+ * Scoring de potencial (0–12) sobre las respuestas del diagnóstico. Define
+ * el tratamiento de la pantalla de cotización: los perfiles calificados —
+ * decisor, con plazo inmediato, con tráfico e intentos previos — reciben la
+ * invitación directa a pedir una cotización a su medida por WhatsApp; los
+ * novatos, el camino suave (con la opción de escribir igualmente).
+ */
+function fitScoreOf(q: Partial<QuizData>): number {
+  let s = 0;
+  if (q.decisionMaker === "Yo tomo la decisión") s += 3;
+  if (
+    q.implementationTiming === "Lo antes posible" ||
+    q.implementationTiming === "En las próximas semanas"
+  ) {
+    s += 3;
+  } else if (q.implementationTiming === "En los próximos meses") {
+    s += 1;
+  }
+  const dm = q.dailyMessages ?? "";
+  if (
+    dm === "100 – 500" ||
+    dm === "500 – 1.000" ||
+    dm === "1.000 – 5.000" ||
+    dm === "5.000 – 10.000" ||
+    dm === "Más de 10.000"
+  ) {
+    s += 2;
+  } else if (dm === "10 – 100") {
+    s += 1;
+  }
+  const cs = q.currentSystem ?? "";
+  if (
+    cs === "Yo respondo personalmente" ||
+    cs === "Un equipo responde manualmente" ||
+    cs === "WhatsApp API" ||
+    cs === "Chatbot" ||
+    cs === "CRM + automatizaciones"
+  ) {
+    s += 1;
+  }
+  const ap = q.automationPrev ?? "";
+  if (
+    ap === "Sí, pero no funcionó como esperaba" ||
+    ap === "Sí, pero quedó incompleto"
+  ) {
+    s += 2;
+  } else if (ap === "Sí, y funcionó" || ap === "Actualmente tengo automatizaciones") {
+    s += 1;
+  }
+  if ((q.trafficSources ?? []).some((t) => t === "Meta Ads" || t === "Google Ads")) {
+    s += 1;
+  }
+  return s;
+}
+
+function fitOf(q: Partial<QuizData>): { score: number; tier: "alto" | "medio" } {
+  const score = fitScoreOf(q);
+  return { score, tier: score >= 6 ? "alto" : "medio" };
 }
 
 function OptionCard({
@@ -185,6 +246,7 @@ export function Quiz() {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [waSent, setWaSent] = useState(false);
+  const [quoteSent, setQuoteSent] = useState(false);
 
   const timers = useRef<number[]>([]);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -192,6 +254,10 @@ export function Quiz() {
   const formViewed = useRef(false);
 
   const days = useMemo(() => getUpcomingDays(21, mk.timezone), [mk.timezone]);
+
+  // Perfil del visitante si no pasa el filtro de presupuesto (define el
+  // tratamiento de la pantalla de cotización).
+  const quoteFit = useMemo(() => fitOf(answers), [answers]);
 
   useEffect(() => {
     captureUtm();
@@ -313,9 +379,16 @@ export function Quiz() {
       const updated = { ...answers, budgetConfirmed: value };
       setAnswers(updated);
       if (value === "NO_POR_AHORA") {
-        anTrack("quiz_disqual");
+        const fit = fitOf(updated);
+        setQuoteSent(false);
+        anTrack("quiz_disqual", { t: fit.tier });
         trackCustom("disqualified_lead");
-        reportLead({ status: "descalificado", quiz: updated });
+        reportLead({
+          status: "cotizacion",
+          market: mk.country,
+          quiz: updated,
+          fitTier: fit.tier,
+        });
         try {
           window.dispatchEvent(new Event("landing:quiz-completed"));
         } catch {
@@ -328,7 +401,7 @@ export function Quiz() {
         schedule(() => go({ kind: "analyzing" }), 650);
       }
     },
-    [answers, go, pending, schedule]
+    [answers, go, mk, pending, schedule]
   );
 
   useEffect(() => {
@@ -438,6 +511,24 @@ export function Quiz() {
     }
     window.open(step.waUrl, "_blank", "noopener,noreferrer");
   }, [step, waSent]);
+
+  /**
+   * Botón de cotización personalizada (visitante sin presupuesto): abre
+   * WhatsApp con todo el contexto del diagnóstico y el perfil de potencial.
+   */
+  const onQuoteRequest = useCallback(() => {
+    const url = buildWaUrl(buildQuoteMessage(answers as QuizData, mk, quoteFit));
+    anTrack("quote_wa_open", { t: quoteFit.tier });
+    flushAnalytics();
+    trackCustom("quote_request");
+    trackStandard("Contact");
+    setQuoteSent(true);
+    try {
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch {
+      /* popup bloqueado: el botón queda disponible */
+    }
+  }, [answers, mk, quoteFit]);
 
   const pct = progressOf(step);
 
@@ -672,7 +763,7 @@ export function Quiz() {
                 <BadgeAlert className="h-4.5 w-4.5 text-gold" />
               </span>
               <h3 className="font-display text-[18px] font-bold uppercase leading-tight text-gold">
-                Importante antes de continuar
+                Hablemos del precio, sin vueltas
               </h3>
             </div>
             <div className="mt-4 space-y-3 text-[13.5px] leading-relaxed text-ink/85">
@@ -681,13 +772,14 @@ export function Quiz() {
                 <strong className="text-ink">{mk.minBudget}</strong>.
               </p>
               <p>
-                Tenemos diferentes configuraciones y niveles de implementación
-                según las necesidades del negocio.
+                Y no es un gasto: es lo que cuesta que las conversaciones que
+                hoy se pierden a medianoche — mientras duermes — empiecen a
+                responderse y venderse solas.
               </p>
               <p>
-                Si después del diagnóstico vemos que podemos ayudarte, en la
-                sesión te mostraremos qué tendría sentido implementar y cómo
-                sería el proceso.
+                Si el diagnóstico muestra una oportunidad real, en la sesión
+                veremos exactamente qué configuración tiene sentido para tu
+                negocio y cómo sería el proceso.
               </p>
             </div>
             <p className="font-display mt-6 text-[16.5px] font-semibold leading-snug text-ink">
@@ -740,32 +832,87 @@ export function Quiz() {
           </div>
         );
 
-      case "disqualified":
+      case "disqualified": {
+        // Perfil calificado (decisor + plazo + tráfico + intentos previos):
+        // invitación directa a una cotización a su medida por WhatsApp.
+        // Perfil novato: camino suave, con la opción de preguntar igualmente.
+        const strong = quoteFit.tier === "alto";
         return wrap(
           "disqualified",
           <div className="flex min-h-[420px] flex-col items-center justify-center text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/12 bg-white/[0.04]">
-              <MoonStar className="h-6 w-6 text-gold" />
+            <div
+              className={`flex h-14 w-14 items-center justify-center rounded-2xl border ${
+                strong ? "border-wa/25 bg-wa/10" : "border-white/12 bg-white/[0.04]"
+              }`}
+            >
+              {strong ? (
+                <Sparkles className="h-6 w-6 text-wa" />
+              ) : (
+                <MoonStar className="h-6 w-6 text-gold" />
+              )}
             </div>
             <h3 className="font-display mt-5 text-[21px] font-bold uppercase leading-tight text-ink">
-              Probablemente todavía no sea el momento adecuado.
+              {strong
+                ? "Tu diagnóstico no termina en un «no»."
+                : "Probablemente todavía no sea el momento adecuado."}
             </h3>
             <p className="mt-4 max-w-sm text-[13.5px] leading-relaxed text-dim">
-              Preferimos ser transparentes contigo: esta sesión está pensada para
-              negocios que están listos para implementar una solución si
-              encontramos una oportunidad real de mejora.
+              {strong
+                ? "Con lo que respondiste — atiendes las conversaciones tú mismo, decides tú y quieres implementarlo ya — tu perfil es de los que mejor responde a este sistema. El presupuesto inicial es el punto de partida de las configuraciones completas, no el único camino."
+                : "Preferimos ser transparentes contigo: esta sesión está pensada para negocios que están listos para implementar una solución si encontramos una oportunidad real de mejora."}
             </p>
             <p className="mt-3 max-w-sm text-[13.5px] leading-relaxed text-dim">
-              Puedes seguir aprendiendo sobre automatización y volver cuando
-              estés listo.
+              {strong ? (
+                <>
+                  Escríbeme directo por WhatsApp y te armo una{" "}
+                  <strong className="text-ink">cotización personalizada</strong>{" "}
+                  para tu caso y para lo que puedes mover hoy. Sin costo, sin
+                  compromiso y sin vueltas.
+                </>
+              ) : (
+                <>
+                  Puedes seguir aprendiendo sobre automatización y volver cuando
+                  estés listo — o preguntarme directo por WhatsApp si tienes una
+                  duda puntual.
+                </>
+              )}
             </p>
             <div className="mt-8 w-full max-w-xs space-y-3">
+              {strong ? (
+                <CtaButton size="md" onClick={onQuoteRequest}>
+                  {quoteSent ? (
+                    <>
+                      <Check className="h-4 w-4" strokeWidth={3} />
+                      Te espero en WhatsApp
+                    </>
+                  ) : (
+                    <>
+                      <MessageCircle className="h-4 w-4" />
+                      Quiero mi cotización personalizada
+                    </>
+                  )}
+                </CtaButton>
+              ) : null}
               <a
                 href="#sistema"
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-wa/40 bg-wa/[0.06] px-6 text-[12.5px] font-bold uppercase tracking-[0.06em] text-wa transition-all duration-200 hover:bg-wa/[0.12] active:scale-[0.97]"
+                className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border px-6 text-[12.5px] font-bold uppercase tracking-[0.06em] transition-all duration-200 active:scale-[0.97] ${
+                  strong
+                    ? "border-white/15 bg-white/[0.03] text-ink/80 hover:border-white/30 hover:text-ink"
+                    : "border-wa/40 bg-wa/[0.06] text-wa hover:bg-wa/[0.12]"
+                }`}
               >
                 Quiero conocer más sobre el sistema
               </a>
+              {strong ? null : (
+                <button
+                  type="button"
+                  onClick={onQuoteRequest}
+                  className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-6 text-[12px] font-bold uppercase tracking-[0.06em] text-ink/80 transition-all duration-200 hover:border-white/30 hover:text-ink active:scale-[0.97]"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {quoteSent ? "Te espero en WhatsApp" : "Hablarme por WhatsApp"}
+                </button>
+              )}
               <a
                 href="https://www.instagram.com/julian_alejandro_morales/"
                 target="_blank"
@@ -778,6 +925,7 @@ export function Quiz() {
             </div>
           </div>
         );
+      }
 
       case "calendar":
         return wrap(

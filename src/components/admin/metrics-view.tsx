@@ -203,8 +203,16 @@ function eventText(
         text: `Presupuesto: ${FILTER_LABELS[String(d.a)] ?? String(d.a ?? "—")}`,
         tone: "wa",
       };
-    case "quiz_disqual":
-      return { text: "Descalificado (sin presupuesto)", tone: "amber" };
+    case "quiz_disqual": {
+      const tier =
+        typeof d.t === "string" && d.t ? ` · perfil ${d.t}` : "";
+      return {
+        text: `Sin presupuesto — entró a cotización${tier}`,
+        tone: "amber",
+      };
+    }
+    case "quote_wa_open":
+      return { text: "Pidió su cotización por WhatsApp", tone: "wa" };
     case "calendar_view":
       return { text: "Vió el calendario de sesiones", tone: "ink" };
     case "form_view":
