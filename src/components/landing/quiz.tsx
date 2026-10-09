@@ -30,7 +30,7 @@ import {
   googleCalendarUrl,
 } from "@/lib/calendar-utils";
 import { initPixel, trackCustom, trackStandard } from "@/lib/tracking";
-import { captureUtm } from "@/lib/utm";
+import { captureUtm, utmSummary } from "@/lib/utm";
 import { buildLeadMessage, buildWaUrl } from "@/lib/whatsapp";
 import type { BudgetConfirmed, BookingData, QuizData } from "@/lib/types";
 import { CtaButton } from "./cta-button";
@@ -133,6 +133,33 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
       {children}
     </label>
   );
+}
+
+/* ------------------------- reporte al panel admin ------------------------ */
+
+/**
+ * Envía el lead al backend del panel (Cloudflare Pages Function + KV).
+ * Fire-and-forget: si falla (preview local sin functions, offline),
+ * el flujo del usuario no se ve afectado — el lead siempre llega por WhatsApp.
+ */
+function reportLead(payload: Record<string, unknown>): void {
+  try {
+    void fetch("/api/lead", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...payload,
+        origin: utmSummary(),
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+      }),
+      keepalive: true,
+    }).catch(() => {
+      /* noop */
+    });
+  } catch {
+    /* noop */
+  }
 }
 
 export function Quiz() {
@@ -266,6 +293,7 @@ export function Quiz() {
       setAnswers(updated);
       if (value === "NO_POR_AHORA") {
         trackCustom("disqualified_lead");
+        reportLead({ status: "descalificado", quiz: updated });
         try {
           window.dispatchEvent(new Event("landing:quiz-completed"));
         } catch {
@@ -337,6 +365,16 @@ export function Quiz() {
       sessionTime,
     };
     const waUrl = buildWaUrl(buildLeadMessage(answers as QuizData, booking));
+    reportLead({
+      status: "booked",
+      name,
+      whatsapp: booking.whatsapp,
+      email,
+      businessType: businessSel,
+      sessionDate,
+      sessionTime,
+      quiz: answers,
+    });
     trackCustom("appointment_booked");
     // "Cliente potencial" (Lead) — dispara en el momento exacto en que la
     // reserva se confirma y se abre WhatsApp con el mensaje estructurado.
