@@ -30,6 +30,7 @@ import {
   googleCalendarUrl,
 } from "@/lib/calendar-utils";
 import { initPixel, trackCustom, trackStandard } from "@/lib/tracking";
+import { captureUtm } from "@/lib/utm";
 import { buildLeadMessage, buildWaUrl } from "@/lib/whatsapp";
 import type { BudgetConfirmed, BookingData, QuizData } from "@/lib/types";
 import { CtaButton } from "./cta-button";
@@ -157,6 +158,7 @@ export function Quiz() {
   const days = useMemo(() => getUpcomingDays(21), []);
 
   useEffect(() => {
+    captureUtm();
     initPixel();
     trackStandard("ViewContent", { content_name: "landing_quiz_view" });
     return () => {

@@ -1,3 +1,4 @@
+import { utmSummary } from './utm'
 import type { BookingData, QuizData } from './types'
 
 function formatSpanishDate(isoDate: string): string {
@@ -57,7 +58,10 @@ CONFIRMADO
 ${formatSpanishDate(booking.sessionDate)} — ${booking.sessionTime} (Hora Colombia)
 
 🔥 ESTADO:
-LEAD CALIFICADO`
+LEAD CALIFICADO
+
+📣 ORIGEN:
+${utmSummary()}`
 }
 
 export function buildWaUrl(
