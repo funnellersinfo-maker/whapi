@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   ChevronDown,
@@ -38,6 +38,11 @@ interface LeadFull extends LeadMeta {
 const ADMIN_KEY_STORAGE = "whapi-admin-key";
 const FOCUS_RING =
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-wa";
+
+/** Métricas del sitio — bundle pesado (recharts), carga diferida al abrir la pestaña. */
+const MetricsView = lazy(() =>
+  import("./metrics-view").then((m) => ({ default: m.MetricsView }))
+);
 
 /* ---------------------------- formatters -------------------------------- */
 
@@ -281,6 +286,7 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, LeadFull>>({});
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [tab, setTab] = useState<"leads" | "metrics">("leads");
 
   const key = useMemo(() => sessionStorage.getItem(ADMIN_KEY_STORAGE) ?? "", []);
 
@@ -391,25 +397,57 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
     >
       {/* Header */}
       <div className="border-b border-white/8 bg-[#080b0d] px-4 py-3.5 sm:px-6">
-        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-x-3 gap-y-2">
           <div className="min-w-0">
             <h2 className="font-display text-sm font-bold uppercase tracking-[0.14em] text-ink">
-              Panel de leads
+              {tab === "leads" ? "Panel de leads" : "Métricas del sitio"}
             </h2>
             <p className="mt-0.5 truncate text-[11px] text-dim">
-              Diagnósticos recibidos · se conservan 90 días
+              {tab === "leads"
+                ? "Diagnósticos recibidos · se conservan 90 días"
+                : "Quién llega, de dónde y qué hace · se conserva 90 días"}
             </p>
           </div>
           <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => void fetchLeads()}
-              aria-label="Actualizar lista"
-              disabled={leads === null}
-              className={`flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-dim transition-colors hover:text-ink disabled:opacity-40 ${FOCUS_RING}`}
+            <div
+              className="flex rounded-xl border border-white/10 p-0.5"
+              role="tablist"
+              aria-label="Secciones del panel"
             >
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
-            </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "leads"}
+                onClick={() => setTab("leads")}
+                className={`rounded-[10px] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.08em] transition-colors ${
+                  tab === "leads" ? "bg-wa/15 text-wa" : "text-dim hover:text-ink"
+                } ${FOCUS_RING}`}
+              >
+                Leads
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "metrics"}
+                onClick={() => setTab("metrics")}
+                className={`rounded-[10px] px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.08em] transition-colors ${
+                  tab === "metrics" ? "bg-wa/15 text-wa" : "text-dim hover:text-ink"
+                } ${FOCUS_RING}`}
+              >
+                Métricas
+              </button>
+            </div>
+            {tab === "leads" ? (
+              <button
+                type="button"
+                onClick={() => void fetchLeads()}
+                aria-label="Actualizar lista"
+                disabled={leads === null}
+                className={`flex h-9 w-9 items-center justify-center rounded-full border border-white/10 text-dim transition-colors hover:text-ink disabled:opacity-40 ${FOCUS_RING}`}
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={logout}
@@ -423,6 +461,8 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="mx-auto w-full max-w-3xl flex-1 overflow-hidden px-4 py-4 sm:px-6">
+        {tab === "leads" && (
+        <>
         {/* KPIs */}
         <div className="grid grid-cols-4 gap-2">
           <KpiCard value={kpis.total} label="Total" />
@@ -659,6 +699,22 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
             })}
           </ul>
         </div>
+        </>
+        )}
+
+        {tab === "metrics" && (
+          <div className="h-full">
+            <Suspense
+              fallback={
+                <div className="flex items-center justify-center py-16 text-dim">
+                  <Loader2 className="h-6 w-6 animate-spin text-wa" aria-hidden="true" />
+                </div>
+              }
+            >
+              <MetricsView adminKey={key} />
+            </Suspense>
+          </div>
+        )}
       </div>
     </div>
   );

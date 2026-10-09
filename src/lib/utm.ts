@@ -56,7 +56,7 @@ export function captureUtm(): void {
   }
 }
 
-function readUtm(): UtmData | null {
+export function readUtm(): UtmData | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);

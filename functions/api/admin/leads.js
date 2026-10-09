@@ -27,7 +27,9 @@ export async function onRequestGet(context) {
   let cursor;
   try {
     do {
-      const page = await env.LEADS.list({ limit: 100, cursor });
+      // Solo claves de leads — el namespace también guarda las sesiones
+      // de analítica (prefijo "sess:").
+      const page = await env.LEADS.list({ prefix: "lead:", limit: 100, cursor });
       for (const k of page.keys) {
         leads.push({
           id: k.name,

@@ -32,6 +32,7 @@ import {
 import { initPixel, trackCustom, trackStandard } from "@/lib/tracking";
 import { captureUtm, utmSummary } from "@/lib/utm";
 import { MARKETS, detectMarket } from "@/lib/market";
+import { track as anTrack, flushAnalytics } from "@/lib/analytics";
 import { buildLeadMessage, buildWaUrl } from "@/lib/whatsapp";
 import type { BudgetConfirmed, BookingData, QuizData } from "@/lib/types";
 import { CtaButton } from "./cta-button";
@@ -188,6 +189,7 @@ export function Quiz() {
   const timers = useRef<number[]>([]);
   const cardRef = useRef<HTMLDivElement>(null);
   const calendarViewed = useRef(false);
+  const formViewed = useRef(false);
 
   const days = useMemo(() => getUpcomingDays(21, mk.timezone), [mk.timezone]);
 
@@ -253,6 +255,7 @@ export function Quiz() {
     (field: string, value: string) => {
       if (pending || step.kind !== "question") return;
       setPending(value);
+      anTrack("quiz_step", { n: step.index + 1, a: value.slice(0, 60) });
       const updated = { ...answers, [field]: value } as Partial<QuizData>;
       setAnswers(updated);
 
@@ -269,15 +272,24 @@ export function Quiz() {
   const onContinueQuestion = useCallback(() => {
     if (step.kind !== "question") return;
     const q = questions[step.index];
+    let label = "";
     if (q.id === "businessType") {
       const value = businessText.trim();
       if (value.length < 2) return;
       setAnswers({ ...answers, businessType: value });
+      label = value;
     } else if (q.id === "trafficSources") {
       if (multi.length === 0) return;
       setAnswers({ ...answers, trafficSources: multi });
+      label = multi.join(", ");
     } else if (q.id === "automationPrev") {
       setAnswers({ ...answers, automationTool: toolText.trim() || undefined });
+      label = toolText.trim();
+    }
+    // businessType/trafficSources solo se trackean aquí (inputs libres);
+    // las de opción única (incl. automationPrev con reveal) ya quedaron en onSingle.
+    if (q.id === "businessType" || q.id === "trafficSources") {
+      anTrack("quiz_step", { n: step.index + 1, a: label.slice(0, 60) });
     }
     advanceFrom(step.index);
   }, [advanceFrom, answers, businessText, multi, questions, step, toolText]);
@@ -296,9 +308,12 @@ export function Quiz() {
     (value: BudgetConfirmed) => {
       if (pending) return;
       setPending(value);
+      anTrack("quiz_filter", { a: value });
+      flushAnalytics();
       const updated = { ...answers, budgetConfirmed: value };
       setAnswers(updated);
       if (value === "NO_POR_AHORA") {
+        anTrack("quiz_disqual");
         trackCustom("disqualified_lead");
         reportLead({ status: "descalificado", quiz: updated });
         try {
@@ -327,7 +342,12 @@ export function Quiz() {
     }
     if (step.kind === "calendar" && !calendarViewed.current) {
       calendarViewed.current = true;
+      anTrack("calendar_view");
       trackCustom("calendar_viewed");
+    }
+    if (step.kind === "form" && !formViewed.current) {
+      formViewed.current = true;
+      anTrack("form_view");
     }
   }, [step, scrollToCard]);
 
@@ -383,6 +403,9 @@ export function Quiz() {
       market: mk.country,
       quiz: answers,
     });
+    anTrack("quiz_booked", { d: sessionDate });
+    anTrack("whatsapp_open");
+    flushAnalytics();
     trackCustom("appointment_booked");
     // "Cliente potencial" (Lead) — dispara en el momento exacto en que la
     // reserva se confirma y se abre WhatsApp con el mensaje estructurado.
@@ -409,6 +432,7 @@ export function Quiz() {
     if (step.kind !== "success") return;
     if (!waSent) {
       setWaSent(true);
+      anTrack("whatsapp_confirm");
       trackCustom("whatsapp_sent");
       trackStandard("Contact");
     }
@@ -470,6 +494,8 @@ export function Quiz() {
               <CtaButton
                 onClick={() => {
                   trackCustom("quiz_started");
+                  anTrack("quiz_open", { market });
+                  flushAnalytics();
                   go({ kind: "question", index: 0 });
                 }}
               >

@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 import { About } from "./about";
 import { Bokeh } from "./bokeh";
 import { Differentiator } from "./differentiator";
@@ -17,8 +19,14 @@ import { Solution } from "./solution";
 import { StickyCta } from "./sticky-cta";
 import { System } from "./system";
 import { WhatsAppOfficial } from "./whatsapp-official";
+import { initAnalytics } from "@/lib/analytics";
 
 export function Landing() {
+  // Analítica de comportamiento para el panel de métricas (una sola vez).
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+
   return (
     <div className="relative flex min-h-screen flex-col overflow-x-clip bg-background">
       <Bokeh />
