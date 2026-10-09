@@ -1,4 +1,5 @@
 import type { QuizData } from "@/lib/types";
+import { MARKETS, type Market } from "@/lib/market";
 
 export type QuestionField = Exclude<keyof QuizData, "budgetConfirmed">;
 
@@ -31,6 +32,19 @@ export const BUSINESS_SUGGESTIONS = [
 
 export const NO_TRAFFIC_OPTION =
   "Todavía no tengo una fuente constante de tráfico";
+
+/**
+ * Preguntas del diagnóstico. La única que cambia por mercado es la de
+ * capacidad de inversión (COP en Colombia, USD en México); el resto del
+ * cuestionario es idéntico.
+ */
+export function getQuestions(market: Market): QuestionDef[] {
+  return QUESTIONS.map((q) =>
+    q.id === "investmentCapacity"
+      ? { ...q, options: MARKETS[market].budgetOptions }
+      : q
+  );
+}
 
 export const QUESTIONS: QuestionDef[] = [
   {
@@ -130,14 +144,8 @@ export const QUESTIONS: QuestionDef[] = [
     kind: "single",
     title:
       "Para implementar un sistema de automatización comercial adaptado a tu negocio se requiere una inversión inicial. ¿Qué capacidad de inversión tienes actualmente para crecer tu marca online?",
-    options: [
-      "Menos de $1.300.000 COP",
-      "Entre $1.300.000 y $2.000.000 COP",
-      "Entre $2.000.000 y $3.000.000 COP",
-      "Entre $3.000.000 y $5.000.000 COP",
-      "Entre $5.000.000 y $7.000.000 COP",
-      "Más de $7.000.000 COP",
-    ],
+    // Las opciones se sustituyen por mercado en getQuestions().
+    options: MARKETS.CO.budgetOptions,
   },
 ];
 

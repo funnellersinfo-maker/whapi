@@ -21,7 +21,7 @@ import {
   BUSINESS_SUGGESTIONS,
   FILTER_OPTIONS,
   NO_TRAFFIC_OPTION,
-  QUESTIONS,
+  getQuestions,
 } from "@/lib/quiz-data";
 import {
   SESSION_SLOTS,
@@ -31,6 +31,7 @@ import {
 } from "@/lib/calendar-utils";
 import { initPixel, trackCustom, trackStandard } from "@/lib/tracking";
 import { captureUtm, utmSummary } from "@/lib/utm";
+import { MARKETS, detectMarket } from "@/lib/market";
 import { buildLeadMessage, buildWaUrl } from "@/lib/whatsapp";
 import type { BudgetConfirmed, BookingData, QuizData } from "@/lib/types";
 import { CtaButton } from "./cta-button";
@@ -165,6 +166,12 @@ function reportLead(payload: Record<string, unknown>): void {
 export function Quiz() {
   const [step, setStep] = useState<Step>({ kind: "intro" });
   const [dir, setDir] = useState(1);
+
+  // Mercado de la landing (CO por defecto; MX vía /mx o ?mx=1): adapta
+  // precios del quiz, prefijo y validación del teléfono y zona horaria.
+  const [market] = useState(() => detectMarket());
+  const mk = MARKETS[market];
+  const questions = useMemo(() => getQuestions(market), [market]);
   const [answers, setAnswers] = useState<Partial<QuizData>>({});
   const [pending, setPending] = useState<string | null>(null);
   const [multi, setMulti] = useState<string[]>([]);
@@ -182,7 +189,7 @@ export function Quiz() {
   const cardRef = useRef<HTMLDivElement>(null);
   const calendarViewed = useRef(false);
 
-  const days = useMemo(() => getUpcomingDays(21), []);
+  const days = useMemo(() => getUpcomingDays(21, mk.timezone), [mk.timezone]);
 
   useEffect(() => {
     captureUtm();
@@ -220,16 +227,16 @@ export function Quiz() {
     if (step.kind === "question" && step.index > 0) {
       setStep({ kind: "question", index: step.index - 1 });
     } else if (step.kind === "filter") {
-      setStep({ kind: "question", index: QUESTIONS.length - 1 });
+      setStep({ kind: "question", index: questions.length - 1 });
     } else if (step.kind === "form") {
       setStep({ kind: "calendar" });
     }
     scrollToCard();
-  }, [step, scrollToCard]);
+  }, [questions.length, step, scrollToCard]);
 
   const advanceFrom = useCallback(
     (index: number) => {
-      if (index + 1 >= QUESTIONS.length) {
+      if (index + 1 >= questions.length) {
         trackCustom("quiz_completed");
         setStep({ kind: "filter" });
       } else {
@@ -239,7 +246,7 @@ export function Quiz() {
       setPending(null);
       scrollToCard();
     },
-    [scrollToCard]
+    [questions.length, scrollToCard]
   );
 
   const onSingle = useCallback(
@@ -261,7 +268,7 @@ export function Quiz() {
 
   const onContinueQuestion = useCallback(() => {
     if (step.kind !== "question") return;
-    const q = QUESTIONS[step.index];
+    const q = questions[step.index];
     if (q.id === "businessType") {
       const value = businessText.trim();
       if (value.length < 2) return;
@@ -273,7 +280,7 @@ export function Quiz() {
       setAnswers({ ...answers, automationTool: toolText.trim() || undefined });
     }
     advanceFrom(step.index);
-  }, [advanceFrom, answers, businessText, multi, step, toolText]);
+  }, [advanceFrom, answers, businessText, multi, questions, step, toolText]);
 
   const toggleMulti = useCallback((opt: string) => {
     setMulti((prev) => {
@@ -339,8 +346,8 @@ export function Quiz() {
       setFormError(ERROR_MESSAGES.invalid_name);
       return;
     }
-    if (!/^3\d{9}$/.test(digits)) {
-      setFormError(ERROR_MESSAGES.invalid_whatsapp);
+    if (!mk.isValidPhone(digits)) {
+      setFormError(mk.phoneError);
       return;
     }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -358,13 +365,13 @@ export function Quiz() {
     setSubmitting(true);
     const booking: BookingData = {
       name,
-      whatsapp: `+57 ${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`,
+      whatsapp: `${mk.phonePrefix} ${mk.formatPhone(digits)}`,
       email,
       businessType: businessSel,
       sessionDate,
       sessionTime,
     };
-    const waUrl = buildWaUrl(buildLeadMessage(answers as QuizData, booking));
+    const waUrl = buildWaUrl(buildLeadMessage(answers as QuizData, booking, mk));
     reportLead({
       status: "booked",
       name,
@@ -373,6 +380,7 @@ export function Quiz() {
       businessType: businessSel,
       sessionDate,
       sessionTime,
+      market: mk.country,
       quiz: answers,
     });
     trackCustom("appointment_booked");
@@ -395,7 +403,7 @@ export function Quiz() {
       /* popup blocked: user has the button */
     }
     setSubmitting(false);
-  }, [answers, businessSel, form, scrollToCard, sessionDate, sessionTime]);
+  }, [answers, businessSel, form, mk, scrollToCard, sessionDate, sessionTime]);
 
   const onConfirmWhatsapp = useCallback(() => {
     if (step.kind !== "success") return;
@@ -472,7 +480,7 @@ export function Quiz() {
         );
 
       case "question": {
-        const q = QUESTIONS[step.index];
+        const q = questions[step.index];
         return wrap(
           `q-${step.index}`,
           <div>
@@ -486,7 +494,7 @@ export function Quiz() {
                 Atrás
               </button>
               <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-dim">
-                Pregunta {step.index + 1} de {QUESTIONS.length}
+                Pregunta {step.index + 1} de {questions.length}
               </span>
             </div>
             <h3 className="font-display mt-4 text-[20px] font-bold leading-[1.18] text-ink">
@@ -644,7 +652,7 @@ export function Quiz() {
             <div className="mt-4 space-y-3 text-[13.5px] leading-relaxed text-ink/85">
               <p>
                 La implementación más básica parte desde{" "}
-                <strong className="text-ink">$1.300.000 COP</strong>.
+                <strong className="text-ink">{mk.minBudget}</strong>.
               </p>
               <p>
                 Tenemos diferentes configuraciones y niveles de implementación
@@ -810,7 +818,7 @@ export function Quiz() {
               ))}
             </div>
             <p className="mt-2.5 text-center text-[11px] text-dim">
-              Hora Colombia (GMT-5)
+              {mk.tzLabel}
             </p>
 
             <div className="mt-6">
@@ -860,7 +868,7 @@ export function Quiz() {
                   {formatSessionDate(sessionDate)}
                 </p>
                 <p className="text-[12.5px] text-dim">
-                  {sessionTime} · Hora Colombia · Videollamada
+                  {sessionTime} · {mk.tzShort} · Videollamada
                 </p>
               </div>
             </div>
@@ -881,7 +889,7 @@ export function Quiz() {
               <Field label="WhatsApp">
                 <div className="flex h-12 items-stretch overflow-hidden rounded-xl border border-white/12 bg-white/[0.04] transition-colors focus-within:border-wa/60">
                   <span className="flex items-center border-r border-white/10 px-3 text-[13px] font-semibold text-dim">
-                    +57
+                    {mk.phonePrefix}
                   </span>
                   <input
                     type="tel"
@@ -891,12 +899,14 @@ export function Quiz() {
                     onChange={(e) =>
                       setForm((f) => ({
                         ...f,
-                        whatsapp: e.target.value.replace(/\D/g, "").slice(0, 10).replace(/(\d{3})(\d{0,3})(\d{0,4})/, (_m, a, b, c) => [a, b, c].filter(Boolean).join(" ")),
+                        whatsapp: mk.formatPhone(
+                          e.target.value.replace(/\D/g, "").slice(0, 10)
+                        ),
                       }))
                     }
                     inputMode="numeric"
                     autoComplete="tel-national"
-                    placeholder="3XX XXX XXXX"
+                    placeholder={mk.phonePlaceholder}
                     className="h-full flex-1 bg-transparent px-3 text-[15px] tracking-wide text-ink outline-none placeholder:text-dim/60"
                   />
                 </div>
@@ -993,7 +1003,7 @@ export function Quiz() {
             </div>
             <div className="mt-3 w-full">
               <a
-                href={googleCalendarUrl(sessionDate, sessionTime)}
+                href={googleCalendarUrl(sessionDate, sessionTime, mk.timezone)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.03] px-6 text-[12px] font-bold uppercase tracking-[0.06em] text-ink/80 transition-all duration-200 hover:border-white/30 hover:text-ink active:scale-[0.97]"

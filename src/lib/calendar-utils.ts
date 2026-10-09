@@ -14,9 +14,9 @@ export const SESSION_SLOTS = [
   "5:00 PM",
 ];
 
-function bogotaToday(): { y: number; m: number; d: number } {
+function todayInZone(timeZone: string): { y: number; m: number; d: number } {
   const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Bogota",
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -26,11 +26,12 @@ function bogotaToday(): { y: number; m: number; d: number } {
 }
 
 /**
- * Next available days (starting tomorrow, Bogotá timezone, Sundays skipped).
- * Dates are anchored to UTC midnight so labels never drift across timezones.
+ * Next available days (starting tomorrow in the market's timezone, Sundays
+ * skipped). Dates are anchored to UTC midnight so labels never drift across
+ * timezones.
  */
-export function getUpcomingDays(count = 21): SessionDay[] {
-  const { y, m, d } = bogotaToday();
+export function getUpcomingDays(count = 21, timeZone = "America/Bogota"): SessionDay[] {
+  const { y, m, d } = todayInZone(timeZone);
   const out: SessionDay[] = [];
   let cursor = new Date(Date.UTC(y, m - 1, d + 1));
   while (out.length < count) {
@@ -69,9 +70,13 @@ export function formatSessionDate(iso: string): string {
 
 /**
  * Google Calendar "add event" link for the booked session (30 minutes,
- * Bogotá timezone). Accepts slot labels like "10:30 AM".
+ * market timezone). Accepts slot labels like "10:30 AM".
  */
-export function googleCalendarUrl(iso: string, time: string): string {
+export function googleCalendarUrl(
+  iso: string,
+  time: string,
+  timeZone = "America/Bogota"
+): string {
   const [year, month, day] = iso.split("-").map(Number);
   let h = 9;
   let min = 0;
@@ -98,7 +103,7 @@ export function googleCalendarUrl(iso: string, time: string): string {
     details:
       "Sesión de diagnóstico de tu negocio por videollamada (aprox. 30 minutos). Recibirás el enlace por WhatsApp.",
     dates: `${stamp(h, min)}/${stamp(endH, endM)}`,
-    ctz: "America/Bogota",
+    ctz: timeZone,
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }

@@ -23,6 +23,7 @@ interface LeadMeta {
   sessionDate?: string | null;
   sessionTime?: string | null;
   origin?: string | null;
+  market?: string | null;
   createdAt: string;
 }
 
@@ -118,6 +119,21 @@ function KpiCard({ value, label }: { value: string | number; label: string }) {
         {label}
       </p>
     </div>
+  );
+}
+
+/** Chip del mercado de origen del lead (🇨🇴 CO / 🇲🇽 MX). */
+function MarketBadge({ market }: { market?: string | null }) {
+  if (!market) return null;
+  const isMx = market.trim().toLowerCase() === "méxico" || market === "MX";
+  const flag = isMx ? "🇲🇽" : "🇨🇴";
+  const code = isMx ? "MX" : "CO";
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-white/12 bg-white/[0.04] px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.12em] text-dim">
+      <span aria-hidden="true">{flag}</span>
+      {code}
+      <span className="sr-only">— mercado: {market}</span>
+    </span>
   );
 }
 
@@ -336,7 +352,7 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
     return list.filter((l) => {
       if (statusFilter !== "all" && l.status !== statusFilter) return false;
       if (!q) return true;
-      return [l.name, l.whatsapp, l.origin, l.sessionDate]
+      return [l.name, l.whatsapp, l.origin, l.sessionDate, l.market]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(q));
     });
@@ -524,6 +540,7 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
                             {l.name || "Sin nombre"}
                           </p>
                           <StatusBadge status={l.status} />
+                          <MarketBadge market={l.market ?? full?.market} />
                         </div>
                         <p className="mt-1 truncate text-[11.5px] text-dim">
                           {[l.whatsapp, l.origin].filter(Boolean).join(" · ") || "—"}
@@ -598,6 +615,16 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
                               </div>
                             );
                           })}
+                          {full.market && (
+                            <div>
+                              <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-dim">
+                                Mercado
+                              </dt>
+                              <dd className="mt-0.5 text-[12.5px] text-ink">
+                                {full.market}
+                              </dd>
+                            </div>
+                          )}
                           {full.origin && (
                             <div className="sm:col-span-2">
                               <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-dim">

@@ -54,6 +54,7 @@ export async function onRequestPost(context) {
     sessionDate: str(body.sessionDate, 10),
     sessionTime: str(body.sessionTime, 20),
     origin: str(body.origin, 200),
+    market: str(body.market, 40),
     quiz: typeof body.quiz === "object" && body.quiz !== null ? body.quiz : null,
     userAgent: str(body.userAgent, 300),
     language: str(body.language, 20),
@@ -70,6 +71,7 @@ export async function onRequestPost(context) {
     sessionDate: lead.sessionDate,
     sessionTime: lead.sessionTime,
     origin: lead.origin,
+    market: lead.market,
     createdAt: now,
   };
 

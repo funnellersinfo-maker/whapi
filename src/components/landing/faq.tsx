@@ -1,15 +1,18 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { MARKETS, detectMarket } from "@/lib/market";
 import { Reveal } from "./reveal";
 import { SectionHeading } from "./section-heading";
 
-const FAQS = [
+function getFaqs(minBudget: string) {
+  return [
   {
     q: "¿Necesito tener WhatsApp Business?",
     a: "No es un requisito para empezar. Si ya lo usas, trabajamos sobre él. En la sesión se define qué configuración le conviene a tu negocio.",
@@ -56,7 +59,7 @@ const FAQS = [
   },
   {
     q: "¿Cuánto cuesta implementarlo?",
-    a: "La implementación más básica parte desde $1.300.000 COP. En la sesión se define exactamente qué configuración tiene sentido para ti.",
+    a: `La implementación más básica parte desde ${minBudget}. En la sesión se define exactamente qué configuración tiene sentido para ti.`,
   },
   {
     q: "¿La inversión publicitaria está incluida?",
@@ -66,9 +69,12 @@ const FAQS = [
     q: "¿La IA reemplaza completamente a mi equipo?",
     a: "No busca reemplazar a nadie, sino quitarle lo repetitivo. Tu equipo se encarga de lo que sí requiere criterio humano; el sistema hace el resto.",
   },
-];
+  ];
+}
 
 export function Faq() {
+  // El presupuesto mínimo se adapta al mercado de la URL (COP / USD).
+  const faqs = useMemo(() => getFaqs(MARKETS[detectMarket()].minBudget), []);
   return (
     <section id="faq" className="relative py-16 sm:py-24">
       <div className="relative mx-auto max-w-md px-4 sm:max-w-xl">
@@ -76,7 +82,7 @@ export function Faq() {
 
         <Reveal className="mt-10" delay={0.05}>
           <Accordion type="single" collapsible className="w-full">
-            {FAQS.map((f, i) => (
+            {faqs.map((f, i) => (
               <AccordionItem
                 key={f.q}
                 value={`f-${i}`}

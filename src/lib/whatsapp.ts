@@ -1,4 +1,5 @@
 import { utmSummary } from './utm'
+import type { MarketConfig } from './market'
 import type { BookingData, QuizData } from './types'
 
 function formatSpanishDate(isoDate: string): string {
@@ -14,7 +15,11 @@ function formatSpanishDate(isoDate: string): string {
   }).format(date)
 }
 
-export function buildLeadMessage(quiz: QuizData, booking: BookingData): string {
+export function buildLeadMessage(
+  quiz: QuizData,
+  booking: BookingData,
+  market?: Pick<MarketConfig, 'country' | 'flag' | 'tzShort'>
+): string {
   const automationPrev = quiz.automationTool
     ? `${quiz.automationPrev} (${quiz.automationTool})`
     : quiz.automationPrev
@@ -55,7 +60,10 @@ ${quiz.investmentCapacity}
 CONFIRMADO
 
 📅 SESIÓN:
-${formatSpanishDate(booking.sessionDate)} — ${booking.sessionTime} (Hora Colombia)
+${formatSpanishDate(booking.sessionDate)} — ${booking.sessionTime} (${market?.tzShort ?? 'Hora Colombia'})
+
+🌎 PAÍS:
+${market ? `${market.flag} ${market.country}` : '🇨🇴 Colombia'}
 
 🔥 ESTADO:
 LEAD CALIFICADO
